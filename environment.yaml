@@ -1,0 +1,8 @@
+name: autoslug
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - inflection
+  - python
+  - unicode-slugify
