@@ -102,35 +102,29 @@ def process_dir(
     ok = True
     if not no_recurse:
         for subpath in path.iterdir():
-            ok = (
-                process_path(
-                    path=subpath,
-                    ignore_stems=ignore_stems,
-                    ok_exts=ok_exts,
-                    no_dash_exts=no_dash_exts,
-                    ext_map=ext_map,
-                    prefixes=prefixes,
-                    ignore_root=False,
-                    no_recurse=False,
-                    quiet=quiet,
-                    verbose=verbose,
-                    dry_run=dry_run,
-                )
-                and ok
+            ok = ok and process_path(
+                path=subpath,
+                ignore_stems=ignore_stems,
+                ok_exts=ok_exts,
+                no_dash_exts=no_dash_exts,
+                ext_map=ext_map,
+                prefixes=prefixes,
+                ignore_root=False,
+                no_recurse=False,
+                quiet=quiet,
+                verbose=verbose,
+                dry_run=dry_run,
             )
     if not ignore_root:
         new_path = path.parent / process_stem(
             stem=path.name, dash=True, prefixes=prefixes
         )
-        ok = (
-            process_change(
-                path=path,
-                new_path=new_path,
-                verbose=verbose,
-                quiet=quiet,
-                dry_run=dry_run,
-            )
-            and ok
+        ok = ok and process_change(
+            path=path,
+            new_path=new_path,
+            verbose=verbose,
+            quiet=quiet,
+            dry_run=dry_run,
         )
     elif verbose and not quiet:
         print(f"[ignore] {path.as_posix()}")
