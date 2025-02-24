@@ -1,5 +1,6 @@
 import argparse
 import mimetypes
+import textwrap
 from pathlib import Path
 
 from inflection import dasherize, parameterize, underscore
@@ -181,13 +182,40 @@ def process_path(
         return True
 
 
-def parse_arguments() -> argparse.Namespace:
+def get_help_text(
+    message: str, defaults: set[str], chars: int = 55, suffix: str | None = None
+) -> str:
+    defaults: list[str] = sorted(defaults)
+    text = message + " in addition to "
+    if len(defaults) >= 2 and suffix is not None:
+        text += '"' + '", "'.join(defaults) + '", and ' + suffix
+    elif len(defaults) > 2:
+        text += '"' + '", "'.join(defaults[:-1]) + '", and "' + defaults[-1] + '"'
+    elif len(defaults) == 2:
+        text += f'"{defaults[0]}" and "{defaults[1]}"'
+    elif suffix is not None:
+        text += '"' + defaults[0] + '" and ' + suffix
+    else:
+        text += '"' + defaults[0] + '"'
+    return textwrap.fill(text, width=chars)
+
+
+def parse_arguments(
+    ok_exts: set[str],
+    ignore_stems: set[str],
+    no_dash_exts: set[str],
+    prefixes: set[str],
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="automatically rename files and directories to be URL-friendly",
+        usage="%(prog)s [options] PATH",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        "path", type=str, help="path to the file or directory to process"
+        "path",
+        type=str,
+        help="path to the file or directory to process",
+        metavar="PATH",
     )
     parser.add_argument(
         "--ignore-root",
@@ -201,15 +229,66 @@ def parse_arguments() -> argparse.Namespace:
         "--no-recurse",
         action="store_true",
         help="do not recurse into subdirectories",
-    ),
-    parser.add_argument(
-        "--verbose", action="store_true", help="output more information"
     )
-    parser.add_argument("--quiet", action="store_true", help="suppress output")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help=(
+            "output information about all paths processed\n"
+            "(only renamed paths outputted by default)"
+        ),
+    )
+    parser.add_argument(
+        "--quiet", action="store_true", help="suppress all output except errors"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="do not actually rename files or directories",
+    )
+    parser.add_argument(
+        "--ok-ext",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(
+            message="file extensions (with period) to recognize",
+            defaults=ok_exts,
+            suffix="common MIME types",
+        ),
+        metavar="str",
+    )
+    parser.add_argument(
+        "--ignore",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(
+            message="stems to ignore (without extension)", defaults=ignore_stems
+        ),
+        metavar="str",
+    )
+    parser.add_argument(
+        "--no-dash",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(
+            message=(
+                "file extensions (with period) where "
+                "underscores should be used instead of dashes"
+            ),
+            defaults=no_dash_exts,
+        ),
+        metavar="str",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(message="prefixes to not change", defaults=prefixes),
+        metavar="str",
     )
     return parser.parse_args()
 
@@ -231,7 +310,17 @@ def main() -> None:
     no_dash_exts = {".py"}
     prefixes = {"_", "."}
 
-    args = parse_arguments()
+    args = parse_arguments(
+        ok_exts=ok_exts,
+        ignore_stems=ignore_stems,
+        no_dash_exts=no_dash_exts,
+        prefixes=prefixes,
+    )
+
+    ok_exts.update(args.ok_ext)
+    ignore_stems.update(args.ignore)
+    no_dash_exts.update(args.no_dash)
+    prefixes.update(args.prefix)
 
     ok = process_path(
         path=Path(args.path),
