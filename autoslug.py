@@ -1,3 +1,4 @@
+import argparse
 import mimetypes
 from pathlib import Path
 
@@ -136,7 +137,9 @@ def process_path(
     quiet: bool,
     dry_run: bool,
 ) -> bool:
-    if path.stem in ignore_stems:
+    if not path.exists():
+        raise SystemExit(f"[ERROR] (specified path does not exist) {path.as_posix()}")
+    elif path.stem in ignore_stems:
         if verbose and not quiet:
             print(f"[ignore] {path.as_posix()}")
         return True
@@ -170,13 +173,26 @@ def process_path(
         return True
 
 
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="automatically rename files and directories to be URL-friendly"
+    )
+    parser.add_argument(
+        "path", type=str, help="path to the file or directory to process"
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="output more information"
+    )
+    parser.add_argument("--quiet", action="store_true", help="suppress output")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="do not actually rename files or directories",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-
-    path = Path(".")
-    verbose = False
-    quiet = False
-    dry_run = True
-
     ok_exts = {
         ".cmd",
         ".ipynb",
@@ -192,6 +208,12 @@ def main() -> None:
     ignore_stems = {".DS_Store", ".git", "README", "LICENSE"}
     no_dash_exts = {".py"}
     prefixes = {"_", "."}
+
+    args = parse_arguments()
+    path = Path(args.path)
+    verbose: bool = args.verbose
+    quiet: bool = args.quiet
+    dry_run: bool = args.dry_run
 
     ok = process_path(
         path=path,
