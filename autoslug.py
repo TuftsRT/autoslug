@@ -93,29 +93,32 @@ def process_dir(
     no_dash_exts: set[str],
     ext_map: dict[str, str],
     prefixes: set[str],
-    only_process_children: bool,
+    ignore_root: bool,
+    no_recurse: bool,
     verbose: bool,
     quiet: bool,
     dry_run: bool,
 ) -> bool:
     ok = True
-    for subpath in path.iterdir():
-        ok = (
-            process_path(
-                path=subpath,
-                ignore_stems=ignore_stems,
-                ok_exts=ok_exts,
-                no_dash_exts=no_dash_exts,
-                ext_map=ext_map,
-                prefixes=prefixes,
-                only_process_children=False,
-                quiet=quiet,
-                verbose=verbose,
-                dry_run=dry_run,
+    if not no_recurse:
+        for subpath in path.iterdir():
+            ok = (
+                process_path(
+                    path=subpath,
+                    ignore_stems=ignore_stems,
+                    ok_exts=ok_exts,
+                    no_dash_exts=no_dash_exts,
+                    ext_map=ext_map,
+                    prefixes=prefixes,
+                    ignore_root=False,
+                    no_recurse=False,
+                    quiet=quiet,
+                    verbose=verbose,
+                    dry_run=dry_run,
+                )
+                and ok
             )
-            and ok
-        )
-    if not only_process_children:
+    if not ignore_root:
         new_path = path.parent / process_stem(
             stem=path.name, dash=True, prefixes=prefixes
         )
@@ -129,6 +132,8 @@ def process_dir(
             )
             and ok
         )
+    elif verbose and not quiet:
+        print(f"[ignore] {path.as_posix()}")
     return ok
 
 
@@ -139,7 +144,8 @@ def process_path(
     no_dash_exts: set[str],
     ext_map: dict[str, str],
     prefixes: set[str],
-    only_process_children: bool,
+    ignore_root: bool,
+    no_recurse: bool,
     verbose: bool,
     quiet: bool,
     dry_run: bool,
@@ -158,7 +164,8 @@ def process_path(
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
-            only_process_children=only_process_children,
+            ignore_root=ignore_root,
+            no_recurse=no_recurse,
             verbose=verbose,
             quiet=quiet,
             dry_run=dry_run,
@@ -182,11 +189,25 @@ def process_path(
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="automatically rename files and directories to be URL-friendly"
+        description="automatically rename files and directories to be URL-friendly",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
         "path", type=str, help="path to the file or directory to process"
     )
+    parser.add_argument(
+        "--ignore-root",
+        action="store_true",
+        help=(
+            "only process children of the specified path\n"
+            "(implied when running in current directory)"
+        ),
+    )
+    parser.add_argument(
+        "--no-recurse",
+        action="store_true",
+        help="do not recurse into subdirectories",
+    ),
     parser.add_argument(
         "--verbose", action="store_true", help="output more information"
     )
@@ -217,22 +238,19 @@ def main() -> None:
     prefixes = {"_", "."}
 
     args = parse_arguments()
-    path = Path(args.path)
-    verbose: bool = args.verbose
-    quiet: bool = args.quiet
-    dry_run: bool = args.dry_run
 
     ok = process_path(
-        path=path,
+        path=Path(args.path),
         ignore_stems=ignore_stems,
         ok_exts=ok_exts,
         no_dash_exts=no_dash_exts,
         ext_map=ext_map,
         prefixes=prefixes,
-        only_process_children=True,
-        verbose=verbose,
-        quiet=quiet,
-        dry_run=dry_run,
+        ignore_root=(True if args.path == "." else args.ignore_root),
+        no_recurse=args.no_recurse,
+        verbose=args.verbose,
+        quiet=args.quiet,
+        dry_run=args.dry_run,
     )
 
     if not ok:
