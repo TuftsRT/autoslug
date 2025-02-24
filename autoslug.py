@@ -331,7 +331,7 @@ def main() -> None:
     ok = process_path(
         path=Path(args.path),
         ignore_stems=ignore_stems,
-        ok_exts=ok_exts,
+        ok_exts=get_ok_exts(additions=ok_exts),
         no_dash_exts=no_dash_exts,
         ext_map=ext_map,
         prefixes=prefixes,
