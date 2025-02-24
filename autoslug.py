@@ -56,7 +56,7 @@ def process_change(
     else:
         if verbose and not quiet:
             print(f"[ok] {path.as_posix()}")
-    return change
+    return not change
 
 
 def process_file(
@@ -119,8 +119,15 @@ def process_dir(
         new_path = path.parent / process_stem(
             stem=path.name, dash=True, prefixes=prefixes
         )
-        return process_change(
-            path=path, new_path=new_path, verbose=verbose, quiet=quiet, dry_run=dry_run
+        ok = (
+            process_change(
+                path=path,
+                new_path=new_path,
+                verbose=verbose,
+                quiet=quiet,
+                dry_run=dry_run,
+            )
+            and ok
         )
     return ok
 
