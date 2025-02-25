@@ -21,7 +21,21 @@ def handle_prefix(stem: str, prefixes: set[str]) -> tuple[str, str]:
     return prefix, stem
 
 
-def process_stem(stem: str, dash: bool, prefixes: set[str]) -> str:
+def shorten_stem(stem: str, max_length: int | None, sep: str) -> str:
+    if len(stem) <= max_length:
+        return stem
+    parts = stem.split(sep)
+    new_stem = parts.pop(0)
+    for part in parts:
+        if len(new_stem) + len(sep) + len(part) > max_length:
+            break
+        new_stem += sep + part
+    return new_stem
+
+
+def process_stem(
+    stem: str, dash: bool, prefixes: set[str], max_length: int | None
+) -> str:
     prefix, stem = handle_prefix(stem=stem, prefixes=prefixes)
     new_stem = parameterize(
         slugify(
@@ -31,6 +45,12 @@ def process_stem(stem: str, dash: bool, prefixes: set[str]) -> str:
         )
     )
     new_stem = dasherize(new_stem) if dash else underscore(new_stem)
+    if max_length is not None:
+        if prefix is not None:
+            max_length -= len(prefix)
+        new_stem = shorten_stem(
+            stem=new_stem, max_length=max_length, sep=("-" if dash else "_")
+        )
     return prefix + new_stem
 
 
@@ -47,8 +67,8 @@ def process_change(
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int,
-    error_limit: int,
+    warn_limit: int | None,
+    error_limit: int | None,
 ) -> bool:
     change = path != new_path
     new_path_str = new_path.as_posix()
@@ -87,8 +107,9 @@ def process_file(
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int,
-    error_limit: int,
+    warn_limit: int | None,
+    error_limit: int | None,
+    max_length: int | None,
 ) -> bool:
     suffix = path.suffix
     if suffix in ok_exts:
@@ -96,12 +117,11 @@ def process_file(
     else:
         stem = path.name
         suffix = ""
-    new_stem = (
-        process_stem(stem=stem, dash=False, prefixes=prefixes)
-        if suffix in no_dash_exts
-        else process_stem(stem=stem, dash=True, prefixes=prefixes)
+    dash = suffix not in no_dash_exts
+    new_path = path.parent / (
+        process_stem(stem=stem, dash=dash, prefixes=prefixes, max_length=max_length)
+        + process_ext(ext=suffix, mappings=ext_map)
     )
-    new_path = path.parent / (new_stem + process_ext(ext=suffix, mappings=ext_map))
     return process_change(
         path=path,
         new_path=new_path,
@@ -125,8 +145,9 @@ def process_dir(
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int,
-    error_limit: int,
+    warn_limit: int | None,
+    error_limit: int | None,
+    max_length: int | None,
 ) -> bool:
     ok = True
     if not no_recurse:
@@ -146,12 +167,13 @@ def process_dir(
                     dry_run=dry_run,
                     warn_limit=warn_limit,
                     error_limit=error_limit,
+                    max_length=max_length,
                 )
                 and ok
             )
     if not ignore_root:
         new_path = path.parent / process_stem(
-            stem=path.name, dash=True, prefixes=prefixes
+            stem=path.name, dash=True, prefixes=prefixes, max_length=max_length
         )
         ok = (
             process_change(
@@ -182,8 +204,9 @@ def process_path(
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int,
-    error_limit: int,
+    warn_limit: int | None,
+    error_limit: int | None,
+    max_length: int | None,
 ) -> bool:
     if not path.exists():
         raise SystemExit(f"[ERROR] (specified path does not exist) {path.as_posix()}")
@@ -206,6 +229,7 @@ def process_path(
             dry_run=dry_run,
             warn_limit=warn_limit,
             error_limit=error_limit,
+            max_length=max_length,
         )
     elif path.is_file():
         return process_file(
@@ -219,6 +243,7 @@ def process_path(
             dry_run=dry_run,
             warn_limit=warn_limit,
             error_limit=error_limit,
+            max_length=max_length,
         )
     else:
         if verbose and not quiet:
@@ -348,6 +373,16 @@ def parse_arguments(
         help="exit failure if any path exceeds this character limit",
         metavar="INT",
     )
+    parser.add_argument(
+        "--max-length",
+        type=int,
+        default=None,
+        help=(
+            "attempt to shorten file and directory names to not\n"
+            "exceed this number of characters (excluding extension)"
+        ),
+        metavar="INT",
+    )
     return parser.parse_args()
 
 
@@ -394,6 +429,7 @@ def main() -> None:
         dry_run=args.dry_run,
         warn_limit=args.warn_limit,
         error_limit=args.error_limit,
+        max_length=args.max_length,
     )
 
     if not ok:
