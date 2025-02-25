@@ -3,7 +3,7 @@ import mimetypes
 import os
 import textwrap
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple
+from typing import Callable, Dict, Optional, Set, Tuple
 
 from fs.base import FS
 from fs.errors import FileExpected
@@ -82,6 +82,17 @@ def process_ext(ext: str, mappings: Dict[str, str]) -> str:
         return ext
 
 
+def get_rename_functions(fs: FS, path: str) -> Callable[[str, str], None]:
+    try:
+        if fs.getmeta()["supports_rename"]:
+            return lambda old, new: os.rename(fs.getospath(old), Path(new).name)
+    except KeyError:
+        pass
+    if fs.isfile(path):
+        return fs.move
+    return fs.movedir
+
+
 def process_change(
     fs: FS,
     path: str,
@@ -97,10 +108,7 @@ def process_change(
         if fs.exists(new_path):
             print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
         else:
-            try:
-                fs.move(path, new_path)
-            except FileExpected:
-                fs.movedir(path, new_path, create=True)
+            get_rename_functions(fs=fs, path=path)(path, new_path)
             if not quiet:
                 print(f"[rename] {path} -> {new_path}")
     else:
