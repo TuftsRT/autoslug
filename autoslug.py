@@ -98,7 +98,7 @@ def get_rename_function(fs: FS, path: str) -> Callable[[str, str], bool]:
 
             def rename(old: str, new: str) -> bool:
                 try:
-                    os.rename(fs.getospath(old), Path(new).name)
+                    os.rename(src=fs.getospath(old), dst=Path(new).name)
                 except PermissionError:
                     print(f"[ERROR] (access denied) {old} -> {new}")
                     return False
@@ -110,7 +110,7 @@ def get_rename_function(fs: FS, path: str) -> Callable[[str, str], bool]:
 
         def rename(old: str, new: str) -> bool:
             try:
-                fs.move(old, new)
+                fs.move(src_path=old, dst_path=new)
             except FileExpected:
                 print(f"[ERROR] (access denied) {old} -> {new}")
                 return False
@@ -120,7 +120,7 @@ def get_rename_function(fs: FS, path: str) -> Callable[[str, str], bool]:
 
         def rename(old: str, new: str) -> bool:
             try:
-                fs.movedir(old, new)
+                fs.movedir(src_path=old, dst_path=new, create=True)
             except DirectoryExpected:
                 print(f"[ERROR] (access denied) {old} -> {new}")
                 return False
