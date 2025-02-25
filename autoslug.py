@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional, Set, Tuple
 
 from fs.base import FS
-from fs.errors import FileExpected
+from fs.errors import DirectoryExpected, FileExpected
 from fs.memoryfs import MemoryFS
 from fs.osfs import OSFS
 from fs.path import basename, dirname, join, splitext
@@ -14,18 +14,27 @@ from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
 
-def copy_structure(src_fs: FS, dst_fs: FS, src_path: str, dst_path: str) -> None:
+def copy_structure(src_fs: FS, dst_fs: FS, src_path: str, dst_path: str) -> bool:
+    ok = True
     if src_fs.isdir(src_path):
         dst_fs.makedirs(dst_path, recreate=True)
-        for subpath in src_fs.scandir(src_path):
-            copy_structure(
-                src_fs=src_fs,
-                dst_fs=dst_fs,
-                src_path=join(src_path, subpath.name),
-                dst_path=join(dst_path, subpath.name),
-            )
+        try:
+            for subpath in src_fs.scandir(src_path):
+                ok = (
+                    copy_structure(
+                        src_fs=src_fs,
+                        dst_fs=dst_fs,
+                        src_path=join(src_path, subpath.name),
+                        dst_path=join(dst_path, subpath.name),
+                    )
+                    and ok
+                )
+        except DirectoryExpected:
+            print(f"[ERROR] (access denied) {src_path}")
+            return False
     elif src_fs.isfile(src_path):
         dst_fs.create(dst_path)
+    return ok
 
 
 def get_ok_exts(additions: Set[str]) -> Set[str]:
@@ -82,15 +91,41 @@ def process_ext(ext: str, mappings: Dict[str, str]) -> str:
         return ext
 
 
-def get_rename_functions(fs: FS, path: str) -> Callable[[str, str], None]:
+def get_rename_function(fs: FS, path: str) -> Callable[[str, str], bool]:
     try:
         if fs.getmeta()["supports_rename"]:
-            return lambda old, new: os.rename(fs.getospath(old), Path(new).name)
+
+            def rename(old: str, new: str) -> bool:
+                try:
+                    os.rename(fs.getospath(old), Path(new).name)
+                except PermissionError:
+                    print(f"[ERROR] (access denied) {old} -> {new}")
+                    return False
+                return True
+
     except KeyError:
         pass
     if fs.isfile(path):
-        return fs.move
-    return fs.movedir
+
+        def rename(old: str, new: str) -> bool:
+            try:
+                fs.move(old, new)
+            except FileExpected:
+                print(f"[ERROR] (access denied) {old} -> {new}")
+                return False
+            return True
+
+    else:
+
+        def rename(old: str, new: str) -> bool:
+            try:
+                fs.movedir(old, new)
+            except DirectoryExpected:
+                print(f"[ERROR] (access denied) {old} -> {new}")
+                return False
+            return True
+
+    return rename
 
 
 def check_conflict(fs: FS, path: str, new_path: str) -> bool:
@@ -118,8 +153,7 @@ def process_change(
         if check_conflict(fs=fs, path=path, new_path=new_path):
             print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
         else:
-            get_rename_functions(fs=fs, path=path)(path, new_path)
-            if not quiet:
+            if get_rename_function(fs=fs, path=path)(path, new_path) and not quiet:
                 print(f"[rename] {path} -> {new_path}")
     else:
         if verbose and not quiet:
@@ -208,26 +242,30 @@ def process_dir(
         )
         path = new_path
     if not no_recurse:
-        for subpath in fs.scandir(path):
-            ok = (
-                process_path(
-                    fs=fs,
-                    path=join(path, subpath.name),
-                    ignore_stems=ignore_stems,
-                    ok_exts=ok_exts,
-                    no_dash_exts=no_dash_exts,
-                    ext_map=ext_map,
-                    prefixes=prefixes,
-                    ignore_root=False,
-                    no_recurse=False,
-                    quiet=quiet,
-                    verbose=verbose,
-                    warn_limit=warn_limit,
-                    error_limit=error_limit,
-                    max_length=max_length,
+        try:
+            for subpath in fs.scandir(path):
+                ok = (
+                    process_path(
+                        fs=fs,
+                        path=join(path, subpath.name),
+                        ignore_stems=ignore_stems,
+                        ok_exts=ok_exts,
+                        no_dash_exts=no_dash_exts,
+                        ext_map=ext_map,
+                        prefixes=prefixes,
+                        ignore_root=False,
+                        no_recurse=False,
+                        quiet=quiet,
+                        verbose=verbose,
+                        warn_limit=warn_limit,
+                        error_limit=error_limit,
+                        max_length=max_length,
+                    )
+                    and ok
                 )
-                and ok
-            )
+        except DirectoryExpected:
+            print(f"[ERROR] (access denied) {path}")
+            return False
     elif verbose and not quiet:
         print(f"[ignore] {path}")
     return ok
@@ -424,6 +462,7 @@ def parse_arguments(
 
 
 def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
+    ok = True
     path_obj = Path(path).resolve()
     if not path_obj.exists():
         raise SystemExit(f"[ERROR] (specified path does not exist) {path}")
@@ -437,7 +476,7 @@ def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
     if dry_run:
         fs = MemoryFS()
         with OSFS(root) as osfs:
-            copy_structure(
+            ok = copy_structure(
                 src_fs=osfs,
                 dst_fs=fs,
                 src_path=start,
@@ -445,7 +484,7 @@ def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
             )
     else:
         fs = OSFS(root)
-    return fs, start, ignore_root
+    return fs, start, ignore_root, ok
 
 
 def main() -> None:
@@ -480,26 +519,30 @@ def main() -> None:
     fs: FS
     start: str
     ignore_root: bool
+    ok: bool
 
-    fs, start, ignore_root = get_fs(
+    fs, start, ignore_root, ok = get_fs(
         path=args.path, ignore_root=args.ignore_root, dry_run=args.dry_run
     )
 
-    ok = process_path(
-        fs=fs,
-        path=start,
-        ignore_stems=ignore_stems,
-        ok_exts=get_ok_exts(additions=ok_exts),
-        no_dash_exts=no_dash_exts,
-        ext_map=ext_map,
-        prefixes=prefixes,
-        ignore_root=ignore_root,
-        no_recurse=args.no_recurse,
-        verbose=args.verbose,
-        quiet=args.quiet,
-        warn_limit=args.warn_limit,
-        error_limit=args.error_limit,
-        max_length=args.max_length,
+    ok = (
+        process_path(
+            fs=fs,
+            path=start,
+            ignore_stems=ignore_stems,
+            ok_exts=get_ok_exts(additions=ok_exts),
+            no_dash_exts=no_dash_exts,
+            ext_map=ext_map,
+            prefixes=prefixes,
+            ignore_root=ignore_root,
+            no_recurse=args.no_recurse,
+            verbose=args.verbose,
+            quiet=args.quiet,
+            warn_limit=args.warn_limit,
+            error_limit=args.error_limit,
+            max_length=args.max_length,
+        )
+        and ok
     )
 
     fs.close()
