@@ -363,9 +363,29 @@ def parse_arguments(
         metavar="PATH",
     )
     parser.add_argument(
+        "-d",
+        "-n",
         "--dry-run",
         action="store_true",
         help="do not actually rename files or directories",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="disable protections and force processing",
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="suppress all output except errors"
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help=(
+            "output information about all paths processed\n"
+            "(only renamed paths outputted by default)"
+        ),
     )
     parser.add_argument(
         "--error-limit",
@@ -373,11 +393,6 @@ def parse_arguments(
         default=None,
         help="exit failure if any path exceeds this character limit",
         metavar="INT",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="disable protections and force processing",
     )
     parser.add_argument(
         "--ignore",
@@ -445,17 +460,6 @@ def parse_arguments(
         default=[],
         help=get_help_text(message="prefixes to not change", defaults=prefixes),
         metavar="STR",
-    )
-    parser.add_argument(
-        "--quiet", action="store_true", help="suppress all output except errors"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help=(
-            "output information about all paths processed\n"
-            "(only renamed paths outputted by default)"
-        ),
     )
     parser.add_argument(
         "--warn-limit",
