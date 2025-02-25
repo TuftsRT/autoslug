@@ -93,6 +93,16 @@ def get_rename_functions(fs: FS, path: str) -> Callable[[str, str], None]:
     return fs.movedir
 
 
+def check_conflict(fs: FS, path: str, new_path: str) -> bool:
+    try:
+        if fs.getmeta()["case_insensitive"]:
+            if path.lower() == new_path.lower():
+                return False
+    except KeyError:
+        pass
+    return fs.exists(new_path)
+
+
 def process_change(
     fs: FS,
     path: str,
@@ -105,7 +115,7 @@ def process_change(
     change = path != new_path
     new_path_len = len(new_path)
     if change:
-        if fs.exists(new_path):
+        if check_conflict(fs=fs, path=path, new_path=new_path):
             print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
         else:
             get_rename_functions(fs=fs, path=path)(path, new_path)
