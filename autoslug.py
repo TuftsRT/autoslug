@@ -64,25 +64,43 @@ def shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
     return new_stem
 
 
+def extract_leading_digits(stem: str, sep: str, n: Optional[int]) -> Tuple[str, str]:
+    if n is not None:
+        parts = stem.split(sep)
+        try:
+            if parts[0].isdigit() and parts[1].isalpha():
+                number = str(min(int(parts[0]), 10**n - 1)).zfill(n)
+                return number, sep.join(parts[1:])
+        except IndexError:
+            pass
+    return "", stem
+
+
 def process_stem(
-    stem: str, dash: bool, prefixes: Set[str], max_length: Optional[int]
+    stem: str,
+    dash: bool,
+    prefixes: Set[str],
+    max_length: Optional[int],
+    n_digits: Optional[int],
 ) -> str:
     prefix, stem = handle_prefix(stem=stem, prefixes=prefixes)
-    new_stem = parameterize(
+    stem = parameterize(
         slugify(
             s=underscore(stem),
             ok=(SLUG_OK + "."),
             only_ascii=True,
         )
     )
-    new_stem = dasherize(new_stem) if dash else underscore(new_stem)
+    stem = dasherize(stem) if dash else underscore(stem)
+    sep = "-" if dash else "_"
+    digits, stem = extract_leading_digits(stem=stem, sep=sep, n=n_digits)
     if max_length is not None:
         if prefix is not None:
             max_length -= len(prefix)
-        new_stem = shorten_stem(
-            stem=new_stem, max_length=max_length, sep=("-" if dash else "_")
-        )
-    return prefix + new_stem
+            if len(digits) > 0:
+                max_length -= len(digits) + len(sep)
+        stem = shorten_stem(stem=stem, max_length=max_length, sep=sep)
+    return prefix + (digits + sep if len(digits) > 0 else "") + stem
 
 
 def process_ext(ext: str, mappings: Dict[str, str]) -> str:
@@ -181,6 +199,7 @@ def process_file(
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
+    n_digits: Optional[int],
 ) -> bool:
     suffix = splitext(path)[1]
     if suffix in ok_exts:
@@ -191,7 +210,13 @@ def process_file(
     dash = suffix not in no_dash_exts
     new_path = join(
         dirname(path),
-        process_stem(stem=stem, dash=dash, prefixes=prefixes, max_length=max_length)
+        process_stem(
+            stem=stem,
+            dash=dash,
+            prefixes=prefixes,
+            max_length=max_length,
+            n_digits=n_digits,
+        )
         + process_ext(ext=suffix, mappings=ext_map),
     )
     return process_change(
@@ -220,13 +245,18 @@ def process_dir(
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
+    n_digits: Optional[int],
 ) -> bool:
     ok = True
     if not ignore_root:
         new_path = join(
             dirname(path),
             process_stem(
-                stem=basename(path), dash=True, prefixes=prefixes, max_length=max_length
+                stem=basename(path),
+                dash=True,
+                prefixes=prefixes,
+                max_length=max_length,
+                n_digits=n_digits,
             ),
         )
         ok = (
@@ -261,6 +291,7 @@ def process_dir(
                         warn_limit=warn_limit,
                         error_limit=error_limit,
                         max_length=max_length,
+                        n_digits=n_digits,
                     )
                     and ok
                 )
@@ -287,6 +318,7 @@ def process_path(
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
+    n_digits: Optional[int],
 ) -> bool:
     if splitext(basename(path))[0] in ignore_stems:
         if verbose and not quiet:
@@ -308,6 +340,7 @@ def process_path(
             warn_limit=warn_limit,
             error_limit=error_limit,
             max_length=max_length,
+            n_digits=n_digits,
         )
     elif fs.isfile(path):
         return process_file(
@@ -322,6 +355,7 @@ def process_path(
             warn_limit=warn_limit,
             error_limit=error_limit,
             max_length=max_length,
+            n_digits=n_digits,
         )
     else:
         return True
@@ -440,6 +474,13 @@ def parse_arguments(
         "--no-recurse",
         action="store_true",
         help="do not recurse into subdirectories",
+    )
+    parser.add_argument(
+        "--num-digits",
+        type=int,
+        default=None,
+        help="number of digits any numerical prefixes should consist of",
+        metavar="INT",
     )
     parser.add_argument(
         "--ok-ext",
@@ -588,6 +629,7 @@ def main() -> None:
             warn_limit=args.warn_limit,
             error_limit=args.error_limit,
             max_length=args.max_length,
+            n_digits=args.num_digits,
         )
         and ok
     )
