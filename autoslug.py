@@ -2,6 +2,7 @@ import argparse
 import mimetypes
 import textwrap
 from pathlib import Path
+from typing import Dict, Optional, Set, Tuple
 
 from fs.base import FS
 from fs.osfs import OSFS
@@ -10,13 +11,13 @@ from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
 
-def get_ok_exts(additions: set[str]) -> set[str]:
+def get_ok_exts(additions: Set[str]) -> Set[str]:
     ext_set = set(mimetypes.types_map.keys())
     ext_set.update(additions)
     return ext_set
 
 
-def handle_prefix(stem: str, prefixes: set[str]) -> tuple[str, str]:
+def handle_prefix(stem: str, prefixes: Set[str]) -> Tuple[str, str]:
     prefix = ""
     while stem[0] in prefixes:
         prefix += stem[0]
@@ -24,7 +25,7 @@ def handle_prefix(stem: str, prefixes: set[str]) -> tuple[str, str]:
     return prefix, stem
 
 
-def shorten_stem(stem: str, max_length: int | None, sep: str) -> str:
+def shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
     if len(stem) <= max_length:
         return stem
     parts = stem.split(sep)
@@ -37,7 +38,7 @@ def shorten_stem(stem: str, max_length: int | None, sep: str) -> str:
 
 
 def process_stem(
-    stem: str, dash: bool, prefixes: set[str], max_length: int | None
+    stem: str, dash: bool, prefixes: Set[str], max_length: Optional[int]
 ) -> str:
     prefix, stem = handle_prefix(stem=stem, prefixes=prefixes)
     new_stem = parameterize(
@@ -57,7 +58,7 @@ def process_stem(
     return prefix + new_stem
 
 
-def process_ext(ext: str, mappings: dict[str, str]) -> str:
+def process_ext(ext: str, mappings: Dict[str, str]) -> str:
     try:
         return mappings[ext]
     except KeyError:
@@ -71,8 +72,8 @@ def process_change(
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int | None,
-    error_limit: int | None,
+    warn_limit: Optional[int],
+    error_limit: Optional[int],
 ) -> bool:
     change = path != new_path
     new_path_len = len(new_path)
@@ -101,16 +102,16 @@ def process_change(
 def process_file(
     fs: FS,
     path: str,
-    ok_exts: set[str],
-    no_dash_exts: set[str],
-    ext_map: dict[str, str],
-    prefixes: set[str],
+    ok_exts: Set[str],
+    no_dash_exts: Set[str],
+    ext_map: Dict[str, str],
+    prefixes: Set[str],
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int | None,
-    error_limit: int | None,
-    max_length: int | None,
+    warn_limit: Optional[int],
+    error_limit: Optional[int],
+    max_length: Optional[int],
 ) -> bool:
     suffix = splitext(path)[1]
     if suffix in ok_exts:
@@ -139,19 +140,19 @@ def process_file(
 def process_dir(
     fs: FS,
     path: str,
-    ignore_stems: set[str],
-    ok_exts: set[str],
-    no_dash_exts: set[str],
-    ext_map: dict[str, str],
-    prefixes: set[str],
+    ignore_stems: Set[str],
+    ok_exts: Set[str],
+    no_dash_exts: Set[str],
+    ext_map: Dict[str, str],
+    prefixes: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int | None,
-    error_limit: int | None,
-    max_length: int | None,
+    warn_limit: Optional[int],
+    error_limit: Optional[int],
+    max_length: Optional[int],
 ) -> bool:
     ok = True
     if not no_recurse:
@@ -204,19 +205,19 @@ def process_dir(
 def process_path(
     fs: FS,
     path: str,
-    ignore_stems: set[str],
-    ok_exts: set[str],
-    no_dash_exts: set[str],
-    ext_map: dict[str, str],
-    prefixes: set[str],
+    ignore_stems: Set[str],
+    ok_exts: Set[str],
+    no_dash_exts: Set[str],
+    ext_map: Dict[str, str],
+    prefixes: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
     quiet: bool,
     dry_run: bool,
-    warn_limit: int | None,
-    error_limit: int | None,
-    max_length: int | None,
+    warn_limit: Optional[int],
+    error_limit: Optional[int],
+    max_length: Optional[int],
 ) -> bool:
     if not fs.exists(path):
         raise SystemExit(f"[ERROR] (specified path does not exist) {path}")
@@ -264,7 +265,7 @@ def process_path(
 
 
 def get_help_text(
-    message: str, defaults: set[str], chars: int = 55, suffix: str | None = None
+    message: str, defaults: Set[str], chars: int = 55, suffix: Optional[str] = None
 ) -> str:
     defaults: list[str] = sorted(defaults)
     text = message + " in addition to "
@@ -282,10 +283,10 @@ def get_help_text(
 
 
 def parse_arguments(
-    ok_exts: set[str],
-    ignore_stems: set[str],
-    no_dash_exts: set[str],
-    prefixes: set[str],
+    ok_exts: Set[str],
+    ignore_stems: Set[str],
+    no_dash_exts: Set[str],
+    prefixes: Set[str],
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="automatically rename files and directories to be URL-friendly",
