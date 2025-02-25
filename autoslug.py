@@ -3,6 +3,9 @@ import mimetypes
 import textwrap
 from pathlib import Path
 
+from fs.base import FS
+from fs.osfs import OSFS
+from fs.path import basename, dirname, join, splitext
 from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
@@ -62,8 +65,9 @@ def process_ext(ext: str, mappings: dict[str, str]) -> str:
 
 
 def process_change(
-    path: Path,
-    new_path: Path,
+    fs: FS,
+    path: str,
+    new_path: str,
     verbose: bool,
     quiet: bool,
     dry_run: bool,
@@ -71,35 +75,32 @@ def process_change(
     error_limit: int | None,
 ) -> bool:
     change = path != new_path
-    new_path_str = new_path.as_posix()
-    new_path_len = len(new_path_str)
+    new_path_len = len(new_path)
     if change:
-        if new_path.exists():
+        if fs.exists(new_path):
             if not quiet:
-                print(
-                    "[ERROR] (conflict preventing renaming) "
-                    f"{path.as_posix()} -> {new_path_str}"
-                )
+                print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
         else:
             if not dry_run:
-                path.rename(new_path)
+                fs.move(path, new_path)
             if not quiet:
-                print(f"[rename] {path.as_posix()} -> {new_path_str}")
+                print(f"[rename] {path} -> {new_path}")
     else:
         if verbose and not quiet:
-            print(f"[ok] {new_path_str}")
+            print(f"[ok] {new_path}")
     if error_limit is not None:
         if new_path_len > error_limit:
-            print(f"[ERROR] (path exceeds {error_limit} characters) {new_path_str}")
+            print(f"[ERROR] (path exceeds {error_limit} characters) {new_path}")
         return False
     if warn_limit is not None:
         if new_path_len > warn_limit and not quiet:
-            print(f"[WARNING] (path exceeds {warn_limit} characters) {new_path_str}")
+            print(f"[WARNING] (path exceeds {warn_limit} characters) {new_path}")
     return not change
 
 
 def process_file(
-    path: Path,
+    fs: FS,
+    path: str,
     ok_exts: set[str],
     no_dash_exts: set[str],
     ext_map: dict[str, str],
@@ -111,18 +112,20 @@ def process_file(
     error_limit: int | None,
     max_length: int | None,
 ) -> bool:
-    suffix = path.suffix
+    suffix = splitext(path)[1]
     if suffix in ok_exts:
-        stem = path.stem
+        stem = splitext(basename(path))[0]
     else:
-        stem = path.name
+        stem = basename(path)
         suffix = ""
     dash = suffix not in no_dash_exts
-    new_path = path.parent / (
+    new_path = join(
+        dirname(path),
         process_stem(stem=stem, dash=dash, prefixes=prefixes, max_length=max_length)
-        + process_ext(ext=suffix, mappings=ext_map)
+        + process_ext(ext=suffix, mappings=ext_map),
     )
     return process_change(
+        fs=fs,
         path=path,
         new_path=new_path,
         verbose=verbose,
@@ -134,7 +137,8 @@ def process_file(
 
 
 def process_dir(
-    path: Path,
+    fs: FS,
+    path: str,
     ignore_stems: set[str],
     ok_exts: set[str],
     no_dash_exts: set[str],
@@ -151,10 +155,11 @@ def process_dir(
 ) -> bool:
     ok = True
     if not no_recurse:
-        for subpath in path.iterdir():
+        for subpath in fs.scandir(path):
             ok = (
                 process_path(
-                    path=subpath,
+                    fs=fs,
+                    path=join(path, subpath.name),
                     ignore_stems=ignore_stems,
                     ok_exts=ok_exts,
                     no_dash_exts=no_dash_exts,
@@ -172,11 +177,15 @@ def process_dir(
                 and ok
             )
     if not ignore_root:
-        new_path = path.parent / process_stem(
-            stem=path.name, dash=True, prefixes=prefixes, max_length=max_length
+        new_path = join(
+            dirname(path),
+            process_stem(
+                stem=basename(path), dash=True, prefixes=prefixes, max_length=max_length
+            ),
         )
         ok = (
             process_change(
+                fs=fs,
                 path=path,
                 new_path=new_path,
                 verbose=verbose,
@@ -188,12 +197,13 @@ def process_dir(
             and ok
         )
     elif verbose and not quiet:
-        print(f"[ignore] {path.as_posix()}")
+        print(f"[ignore] {path}")
     return ok
 
 
 def process_path(
-    path: Path,
+    fs: FS,
+    path: str,
     ignore_stems: set[str],
     ok_exts: set[str],
     no_dash_exts: set[str],
@@ -208,14 +218,15 @@ def process_path(
     error_limit: int | None,
     max_length: int | None,
 ) -> bool:
-    if not path.exists():
-        raise SystemExit(f"[ERROR] (specified path does not exist) {path.as_posix()}")
-    elif path.stem in ignore_stems:
+    if not fs.exists(path):
+        raise SystemExit(f"[ERROR] (specified path does not exist) {path}")
+    elif splitext(basename(path))[0] in ignore_stems:
         if verbose and not quiet:
-            print(f"[ignore] {path.as_posix()}")
+            print(f"[ignore] {path}")
         return True
-    elif path.is_dir():
+    elif fs.isdir(path):
         return process_dir(
+            fs=fs,
             path=path,
             ignore_stems=ignore_stems,
             ok_exts=ok_exts,
@@ -231,8 +242,9 @@ def process_path(
             error_limit=error_limit,
             max_length=max_length,
         )
-    elif path.is_file():
+    elif fs.isfile(path):
         return process_file(
+            fs=fs,
             path=path,
             ok_exts=ok_exts,
             no_dash_exts=no_dash_exts,
@@ -247,7 +259,7 @@ def process_path(
         )
     else:
         if verbose and not quiet:
-            print(f"[skip] {path.as_posix()}")
+            print(f"[skip] {path}")
         return True
 
 
@@ -415,22 +427,26 @@ def main() -> None:
     no_dash_exts.update(args.no_dash)
     prefixes.update(args.prefix)
 
-    ok = process_path(
-        path=Path(args.path),
-        ignore_stems=ignore_stems,
-        ok_exts=get_ok_exts(additions=ok_exts),
-        no_dash_exts=no_dash_exts,
-        ext_map=ext_map,
-        prefixes=prefixes,
-        ignore_root=(True if args.path == "." else args.ignore_root),
-        no_recurse=args.no_recurse,
-        verbose=args.verbose,
-        quiet=args.quiet,
-        dry_run=args.dry_run,
-        warn_limit=args.warn_limit,
-        error_limit=args.error_limit,
-        max_length=args.max_length,
-    )
+    path = Path(args.path)
+
+    with OSFS(path.parent.as_posix()) as fs:
+        ok = process_path(
+            fs=fs,
+            path=path.name,
+            ignore_stems=ignore_stems,
+            ok_exts=get_ok_exts(additions=ok_exts),
+            no_dash_exts=no_dash_exts,
+            ext_map=ext_map,
+            prefixes=prefixes,
+            ignore_root=(True if args.path == "." else args.ignore_root),
+            no_recurse=args.no_recurse,
+            verbose=args.verbose,
+            quiet=args.quiet,
+            dry_run=args.dry_run,
+            warn_limit=args.warn_limit,
+            error_limit=args.error_limit,
+            max_length=args.max_length,
+        )
 
     if not ok:
         exit(1)
