@@ -7,6 +7,7 @@ from typing import Optional, Set, Tuple
 
 from autoslug.autoslug import process_path
 from autoslug.defaults import (
+    DESCRIPTION,
     EXT_MAP,
     IGNORE_EXTS,
     IGNORE_STEMS,
@@ -103,9 +104,7 @@ def parse_arguments(
     prefixes: Set[str],
     suffixes: Set[str],
 ) -> Namespace:
-    parser = ArgumentParser(
-        description="automatically rename files and directories to be URL-friendly",
-    )
+    parser = ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         "path",
         type=str,
