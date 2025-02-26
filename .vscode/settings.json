@@ -1,10 +1,12 @@
 {
   "cSpell.words": [
+    "autoslug",
     "getmeta",
     "getospath",
     "ipynb",
     "memoryfs",
     "movedir",
-    "osfs"
+    "osfs",
+    "pycache"
   ]
 }
