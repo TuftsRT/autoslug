@@ -183,9 +183,9 @@ def main() -> None:
         ".yml",
     }
     ext_map = {".yml": ".yaml"}
-    ignore_stems = {".DS_Store", ".git", "README", "LICENSE"}
+    ignore_stems = {".DS_Store", ".git", "README", "LICENSE", "__pycache__"}
     no_dash_exts = {".py"}
-    prefixes = {"_", "."}
+    prefixes = {".", "_"}
     suffixes = {"_"}
 
     args = parse_arguments(
