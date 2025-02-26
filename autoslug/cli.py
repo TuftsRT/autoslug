@@ -134,7 +134,7 @@ def parse_arguments(
         "--verbose",
         action="store_true",
         help=(
-            "output information about all paths processed\n"
+            "output information about all paths processed"
             "(only renamed paths outputted by default)"
         ),
     )
@@ -169,7 +169,7 @@ def parse_arguments(
         "--ignore-root",
         action="store_true",
         help=(
-            "only process children of the specified path\n"
+            "only process children of the specified path"
             "(implied when running in current directory)"
         ),
     )
@@ -185,7 +185,7 @@ def parse_arguments(
         type=int,
         default=None,
         help=(
-            "attempt to shorten file and directory names to not\n"
+            "attempt to shorten file and directory names to not"
             "exceed this number of characters (excluding extension)"
         ),
         metavar="<int>",
