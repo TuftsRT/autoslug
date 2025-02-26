@@ -35,6 +35,7 @@ def parse_arguments(
     ignore_stems: Set[str],
     no_dash_exts: Set[str],
     prefixes: Set[str],
+    suffixes: Set[str],
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="automatically rename files and directories to be URL-friendly",
@@ -152,6 +153,14 @@ def parse_arguments(
         metavar="<str>",
     )
     parser.add_argument(
+        "--suffix",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(message="suffixes to not change", defaults=suffixes),
+        metavar="<str>",
+    )
+    parser.add_argument(
         "--warn-limit",
         type=int,
         default=None,
@@ -177,18 +186,21 @@ def main() -> None:
     ignore_stems = {".DS_Store", ".git", "README", "LICENSE"}
     no_dash_exts = {".py"}
     prefixes = {"_", "."}
+    suffixes = {"_"}
 
     args = parse_arguments(
         ok_exts=ok_exts,
         ignore_stems=ignore_stems,
         no_dash_exts=no_dash_exts,
         prefixes=prefixes,
+        suffixes=suffixes,
     )
 
     ok_exts.update(args.ok_ext)
     ignore_stems.update(args.ignore)
     no_dash_exts.update(args.no_dash)
     prefixes.update(args.prefix)
+    suffixes.update(args.suffix)
 
     assert_path(args.path)
     check_git_repository(path=args.path, force=args.force)
@@ -211,6 +223,7 @@ def main() -> None:
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
+            suffixes=suffixes,
             ignore_root=ignore_root,
             no_recurse=args.no_recurse,
             verbose=args.verbose,

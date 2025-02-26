@@ -43,12 +43,21 @@ def get_ok_exts(additions: Set[str]) -> Set[str]:
     return ext_set
 
 
-def handle_prefix(stem: str, prefixes: Set[str]) -> Tuple[str, str]:
-    prefix = ""
-    while stem[0] in prefixes:
-        prefix += stem[0]
-        stem = stem[1:]
-    return prefix, stem
+def handle_affixes(
+    stem: str, prefixes: Set[str], suffixes: Set[str]
+) -> Tuple[str, str, str]:
+    prefix_pattern = "|".join(re.escape(prefix) + "+" for prefix in prefixes)
+    suffix_pattern = "|".join(re.escape(suffix) + "+" for suffix in suffixes)
+    pattern = f"^({prefix_pattern})?(.+?)({suffix_pattern})?$"
+    match = re.match(pattern, stem)
+    if match:
+        prefix = match.group(1) or ""
+        stem = match.group(2) or ""
+        suffix = match.group(3) or ""
+    else:
+        prefix = ""
+        suffix = ""
+    return prefix, stem, suffix
 
 
 def shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
@@ -79,10 +88,13 @@ def process_stem(
     stem: str,
     dash: bool,
     prefixes: Set[str],
+    suffixes: Set[str],
     max_length: Optional[int],
     n_digits: Optional[int],
 ) -> str:
-    prefix, stem = handle_prefix(stem=stem, prefixes=prefixes)
+    prefix, stem, suffix = handle_affixes(
+        stem=stem, prefixes=prefixes, suffixes=suffixes
+    )
     stem = parameterize(
         slugify(
             s=underscore(stem),
@@ -100,7 +112,7 @@ def process_stem(
             if len(digits) > 0:
                 max_length -= len(digits) + len(sep)
         stem = shorten_stem(stem=stem, max_length=max_length, sep=sep)
-    return prefix + (digits + sep if len(digits) > 0 else "") + stem
+    return prefix + (digits + sep if len(digits) > 0 else "") + stem + suffix
 
 
 def process_ext(ext: str, mappings: Dict[str, str]) -> str:
@@ -194,6 +206,7 @@ def process_file(
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
     prefixes: Set[str],
+    suffixes: Set[str],
     verbose: bool,
     quiet: bool,
     warn_limit: Optional[int],
@@ -214,6 +227,7 @@ def process_file(
             stem=stem,
             dash=dash,
             prefixes=prefixes,
+            suffixes=suffixes,
             max_length=max_length,
             n_digits=n_digits,
         )
@@ -238,6 +252,7 @@ def process_dir(
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
     prefixes: Set[str],
+    suffixes: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
@@ -255,6 +270,7 @@ def process_dir(
                 stem=basename(path),
                 dash=True,
                 prefixes=prefixes,
+                suffixes=suffixes,
                 max_length=max_length,
                 n_digits=n_digits,
             ),
@@ -284,6 +300,7 @@ def process_dir(
                         no_dash_exts=no_dash_exts,
                         ext_map=ext_map,
                         prefixes=prefixes,
+                        suffixes=suffixes,
                         ignore_root=False,
                         no_recurse=False,
                         quiet=quiet,
@@ -311,6 +328,7 @@ def process_path(
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
     prefixes: Set[str],
+    suffixes: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
@@ -333,6 +351,7 @@ def process_path(
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
+            suffixes=suffixes,
             ignore_root=ignore_root,
             no_recurse=no_recurse,
             verbose=verbose,
@@ -350,6 +369,7 @@ def process_path(
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
+            suffixes=suffixes,
             quiet=quiet,
             verbose=verbose,
             warn_limit=warn_limit,
