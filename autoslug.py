@@ -2,7 +2,6 @@ import argparse
 import mimetypes
 import os
 import subprocess
-import textwrap
 from pathlib import Path
 from typing import Callable, Dict, Optional, Set, Tuple
 
@@ -362,7 +361,7 @@ def process_path(
 
 
 def get_help_text(
-    message: str, defaults: Set[str], chars: int = 55, suffix: Optional[str] = None
+    message: str, defaults: Set[str], suffix: Optional[str] = None
 ) -> str:
     defaults: list[str] = sorted(defaults)
     text = message + " in addition to "
@@ -376,7 +375,7 @@ def get_help_text(
         text += '"' + defaults[0] + '" and ' + suffix
     else:
         text += '"' + defaults[0] + '"'
-    return textwrap.fill(text, width=chars)
+    return text
 
 
 def parse_arguments(
@@ -387,14 +386,12 @@ def parse_arguments(
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="automatically rename files and directories to be URL-friendly",
-        usage="%(prog)s [options] PATH",
-        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
         "path",
         type=str,
         help="path to the file or directory to process",
-        metavar="PATH",
+        metavar="<path>",
     )
     parser.add_argument(
         "-d",
@@ -426,7 +423,7 @@ def parse_arguments(
         type=int,
         default=None,
         help="exit failure if any path exceeds this character limit",
-        metavar="INT",
+        metavar="<int>",
     )
     parser.add_argument(
         "--ignore",
@@ -436,7 +433,7 @@ def parse_arguments(
         help=get_help_text(
             message="stems to ignore (without extension)", defaults=ignore_stems
         ),
-        metavar="STR",
+        metavar="<str>",
     )
     parser.add_argument(
         "--ignore-root",
@@ -454,7 +451,7 @@ def parse_arguments(
             "attempt to shorten file and directory names to not\n"
             "exceed this number of characters (excluding extension)"
         ),
-        metavar="INT",
+        metavar="<int>",
     )
     parser.add_argument(
         "--no-dash",
@@ -468,7 +465,7 @@ def parse_arguments(
             ),
             defaults=no_dash_exts,
         ),
-        metavar="STR",
+        metavar="<str>",
     )
     parser.add_argument(
         "--no-recurse",
@@ -480,7 +477,7 @@ def parse_arguments(
         type=int,
         default=None,
         help="number of digits any numerical prefixes should consist of",
-        metavar="INT",
+        metavar="<int>",
     )
     parser.add_argument(
         "--ok-ext",
@@ -492,7 +489,7 @@ def parse_arguments(
             defaults=ok_exts,
             suffix="common MIME types",
         ),
-        metavar="STR",
+        metavar="<str>",
     )
     parser.add_argument(
         "--prefix",
@@ -500,14 +497,14 @@ def parse_arguments(
         nargs="*",
         default=[],
         help=get_help_text(message="prefixes to not change", defaults=prefixes),
-        metavar="STR",
+        metavar="<str>",
     )
     parser.add_argument(
         "--warn-limit",
         type=int,
         default=None,
         help="output warning if path exceeds this character limit",
-        metavar="INT",
+        metavar="<int>",
     )
     return parser.parse_args()
 
