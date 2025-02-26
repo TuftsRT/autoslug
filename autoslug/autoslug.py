@@ -1,7 +1,5 @@
-import mimetypes
 import os
 import re
-import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
@@ -35,12 +33,6 @@ def copy_structure(src_fs: FS, dst_fs: FS, src_path: str, dst_path: str) -> bool
     elif src_fs.isfile(src_path):
         dst_fs.create(dst_path)
     return ok
-
-
-def get_ok_exts(additions: Set[str]) -> Set[str]:
-    ext_set = set(mimetypes.types_map.keys())
-    ext_set.update(additions)
-    return ext_set
 
 
 def handle_affixes(
@@ -406,39 +398,3 @@ def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
     else:
         fs = OSFS(root)
     return fs, start, ignore_root, ok
-
-
-def is_git_repository(path: str) -> Tuple[bool, Optional[bool]]:
-    try:
-        subprocess.run(
-            ["git", "-C", path, "rev-parse"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return True, True
-    except subprocess.CalledProcessError:
-        return True, False
-    except FileNotFoundError:
-        return False, None
-
-
-def check_git_repository(path: str, force: bool) -> None:
-    test_ok, is_git = is_git_repository(path=path)
-    if not test_ok:
-        msg = "unable to determine whether path is within git repository"
-    elif not is_git:
-        msg = "specified path is not within a git repository"
-    if (not test_ok or not is_git) and not force:
-        raise SystemExit(
-            f"[ERROR] ({msg}) {path}\n"
-            "[WARNING] actions might be destructive and irreversible\n"
-            "[INFO] run again with --force to override and process anyway"
-        )
-    return None
-
-
-def assert_path(path: str) -> None:
-    if not Path(path).exists():
-        raise SystemExit(f"[ERROR] (specified path does not exist) {path}")
-    return None
