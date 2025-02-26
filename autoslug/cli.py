@@ -10,6 +10,15 @@ from autoslug.autoslug import (
     get_ok_exts,
     process_path,
 )
+from autoslug.defaults import (
+    EXT_MAP,
+    IGNORE_EXTS,
+    IGNORE_STEMS,
+    NO_DASH_EXTS,
+    OK_EXTS,
+    PREFIXES,
+    SUFFIXES,
+)
 
 
 def get_help_text(
@@ -184,23 +193,13 @@ def parse_arguments(
 
 
 def main() -> None:
-    ok_exts = {
-        ".cmd",
-        ".ipynb",
-        ".md",
-        ".ps1",
-        ".R",
-        ".Rmd",
-        ".rst",
-        ".yaml",
-        ".yml",
-    }
-    ext_map = {".yml": ".yaml"}
-    ignore_stems = {".DS_Store", ".git", "README", "LICENSE", "__pycache__"}
-    no_dash_exts = {".py"}
-    prefixes = {".", "_"}
-    suffixes = {"_"}
-    ignore_exts = set()
+    ok_exts = OK_EXTS.copy()
+    ext_map = EXT_MAP.copy()
+    ignore_stems = IGNORE_STEMS.copy()
+    no_dash_exts = NO_DASH_EXTS.copy()
+    prefixes = PREFIXES.copy()
+    suffixes = SUFFIXES.copy()
+    ignore_exts = IGNORE_EXTS.copy()
 
     args = parse_arguments(
         ok_exts=ok_exts,
