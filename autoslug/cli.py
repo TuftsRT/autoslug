@@ -15,6 +15,8 @@ from autoslug.autoslug import (
 def get_help_text(
     message: str, defaults: Set[str], suffix: Optional[str] = None
 ) -> str:
+    if not defaults:
+        return message
     defaults: list[str] = sorted(defaults)
     text = message + " in addition to "
     if len(defaults) >= 2 and suffix is not None:
@@ -33,6 +35,7 @@ def get_help_text(
 def parse_arguments(
     ok_exts: Set[str],
     ignore_stems: Set[str],
+    ignore_exts: Set[str],
     no_dash_exts: Set[str],
     prefixes: Set[str],
     suffixes: Set[str],
@@ -85,6 +88,16 @@ def parse_arguments(
         default=[],
         help=get_help_text(
             message="stems to ignore (without extension)", defaults=ignore_stems
+        ),
+        metavar="<str>",
+    )
+    parser.add_argument(
+        "--ignore-ext",
+        type=str,
+        nargs="*",
+        default=[],
+        help=get_help_text(
+            message="file extensions (with period) to ignore", defaults=ignore_exts
         ),
         metavar="<str>",
     )
@@ -187,10 +200,12 @@ def main() -> None:
     no_dash_exts = {".py"}
     prefixes = {".", "_"}
     suffixes = {"_"}
+    ignore_exts = set()
 
     args = parse_arguments(
         ok_exts=ok_exts,
         ignore_stems=ignore_stems,
+        ignore_exts=ignore_exts,
         no_dash_exts=no_dash_exts,
         prefixes=prefixes,
         suffixes=suffixes,
@@ -201,6 +216,7 @@ def main() -> None:
     no_dash_exts.update(args.no_dash)
     prefixes.update(args.prefix)
     suffixes.update(args.suffix)
+    ignore_exts.update(args.ignore_ext)
 
     assert_path(args.path)
     check_git_repository(path=args.path, force=args.force)
@@ -224,6 +240,7 @@ def main() -> None:
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
+            ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=args.no_recurse,
             verbose=args.verbose,

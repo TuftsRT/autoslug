@@ -207,6 +207,7 @@ def process_file(
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
+    ignore_exts: Set[str],
     verbose: bool,
     quiet: bool,
     warn_limit: Optional[int],
@@ -215,6 +216,10 @@ def process_file(
     n_digits: Optional[int],
 ) -> bool:
     suffix = splitext(path)[1]
+    if suffix in ignore_exts:
+        if verbose and not quiet:
+            print(f"[ignore] {path}")
+        return True
     if suffix in ok_exts:
         stem = splitext(basename(path))[0]
     else:
@@ -253,6 +258,7 @@ def process_dir(
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
+    ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
@@ -301,6 +307,7 @@ def process_dir(
                         ext_map=ext_map,
                         prefixes=prefixes,
                         suffixes=suffixes,
+                        ignore_exts=ignore_exts,
                         ignore_root=False,
                         no_recurse=False,
                         quiet=quiet,
@@ -329,6 +336,7 @@ def process_path(
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
+    ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     verbose: bool,
@@ -352,6 +360,7 @@ def process_path(
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
+            ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=no_recurse,
             verbose=verbose,
@@ -370,6 +379,7 @@ def process_path(
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
+            ignore_exts=ignore_exts,
             quiet=quiet,
             verbose=verbose,
             warn_limit=warn_limit,
