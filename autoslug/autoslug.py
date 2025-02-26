@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Callable, Dict, Optional, Set, Tuple
@@ -91,6 +92,7 @@ def process_stem(
     )
     stem = dasherize(stem) if dash else underscore(stem)
     sep = "-" if dash else "_"
+    stem = re.sub(f"{sep}+", sep, stem).strip(sep)
     digits, stem = extract_leading_digits(stem=stem, sep=sep, n=n_digits)
     if max_length is not None:
         if prefix is not None:
