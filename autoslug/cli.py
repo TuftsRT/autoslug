@@ -1,4 +1,5 @@
 import argparse
+import logging
 import mimetypes
 import subprocess
 from pathlib import Path
@@ -16,6 +17,15 @@ from autoslug.defaults import (
     PREFIXES,
     SUFFIXES,
 )
+from autoslug.logging import get_logger
+
+
+def get_log_level(quiet: bool, verbose: bool) -> int:
+    if quiet:
+        return logging.ERROR
+    elif verbose:
+        return logging.DEBUG
+    return logging.INFO
 
 
 def get_ok_exts(additions: Set[str]) -> Set[str]:
@@ -39,24 +49,30 @@ def is_git_repository(path: str) -> Tuple[bool, Optional[bool]]:
         return False, None
 
 
-def check_git_repository(path: str, force: bool) -> None:
+def check_git_repository(path: str, force: bool, logger: logging.Logger) -> None:
     test_ok, is_git = is_git_repository(path=path)
     if not test_ok:
         msg = "unable to determine whether path is within git repository"
     elif not is_git:
         msg = "specified path is not within a git repository"
     if (not test_ok or not is_git) and not force:
-        raise SystemExit(
-            f"[ERROR] ({msg}) {path}\n"
-            "[WARNING] actions might be destructive and irreversible\n"
-            "[INFO] run again with --force to override and process anyway"
-        )
+        logger.critical(f"{msg}: {path}")
+        logger.warning("actions might be destructive and irreversible")
+        logger.info("run again with --force to override and process anyway")
+        exit(1)
     return None
 
 
-def assert_path(path: str) -> None:
+def assert_path(path: str, logger: logging.Logger) -> None:
     if not Path(path).exists():
-        raise SystemExit(f"[ERROR] (specified path does not exist) {path}")
+        logger.critical(f"specified path does not exist: {path}")
+        exit(1)
+    return None
+
+
+def perform_checks(path: str, force: bool, logger: logging.Logger) -> None:
+    assert_path(path=path, logger=logger)
+    check_git_repository(path=path, force=force, logger=logger)
     return None
 
 
@@ -158,6 +174,13 @@ def parse_arguments(
         ),
     )
     parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="log output to specified file",
+        metavar="<path>",
+    )
+    parser.add_argument(
         "--max-length",
         type=int,
         default=None,
@@ -256,8 +279,11 @@ def main() -> None:
     suffixes.update(args.suffix)
     ignore_exts.update(args.ignore_ext)
 
-    assert_path(args.path)
-    check_git_repository(path=args.path, force=args.force)
+    logger = get_logger(
+        console_level=get_log_level(args.quiet, args.verbose), log_file=args.log_file
+    )
+
+    perform_checks(path=args.path, force=args.force, logger=logger)
 
     fs: FS
     start: str
@@ -265,7 +291,10 @@ def main() -> None:
     ok: bool
 
     fs, start, ignore_root, ok = get_fs(
-        path=args.path, ignore_root=args.ignore_root, dry_run=args.dry_run
+        path=args.path,
+        ignore_root=args.ignore_root,
+        dry_run=args.dry_run,
+        logger=logger,
     )
 
     ok = (
@@ -281,8 +310,7 @@ def main() -> None:
             ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=args.no_recurse,
-            verbose=args.verbose,
-            quiet=args.quiet,
+            logger=logger,
             warn_limit=args.warn_limit,
             error_limit=args.error_limit,
             max_length=args.max_length,

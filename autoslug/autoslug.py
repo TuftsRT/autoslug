@@ -1,5 +1,6 @@
 import os
 import re
+from logging import Logger
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
@@ -12,7 +13,19 @@ from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
 
-def copy_structure(src_fs: FS, dst_fs: FS, src_path: str, dst_path: str) -> bool:
+def log_access_denied(path: str, logger: Logger) -> None:
+    logger.error(f"access denied: {path}")
+    return None
+
+
+def log_ignored(path: str, logger: Logger) -> None:
+    logger.debug(f"ignored: {path}")
+    return None
+
+
+def copy_structure(
+    src_fs: FS, dst_fs: FS, src_path: str, dst_path: str, logger: Logger
+) -> bool:
     ok = True
     if src_fs.isdir(src_path):
         dst_fs.makedirs(dst_path, recreate=True)
@@ -24,11 +37,12 @@ def copy_structure(src_fs: FS, dst_fs: FS, src_path: str, dst_path: str) -> bool
                         dst_fs=dst_fs,
                         src_path=join(src_path, subpath.name),
                         dst_path=join(dst_path, subpath.name),
+                        logger=logger,
                     )
                     and ok
                 )
         except DirectoryExpected:
-            print(f"[ERROR] (access denied) {src_path}")
+            log_access_denied(path=src_path, logger=logger)
             return False
     elif src_fs.isfile(src_path):
         dst_fs.create(dst_path)
@@ -118,7 +132,6 @@ def os_rename(fs: FS, old: str, new: str) -> bool:
     try:
         os.rename(src=fs.getospath(old), dst=fs.getospath(new))
     except PermissionError:
-        print(f"[ERROR] (access denied) {old} -> {new}")
         return False
     return True
 
@@ -130,7 +143,6 @@ def fs_rename(fs: FS, old: str, new: str) -> bool:
         else:
             fs.movedir(src_path=old, dst_path=new, create=True)
     except (FileExpected, DirectoryExpected):
-        print(f"[ERROR] (access denied) {old} -> {new}")
         return False
     return True
 
@@ -158,8 +170,7 @@ def process_change(
     fs: FS,
     path: str,
     new_path: str,
-    verbose: bool,
-    quiet: bool,
+    logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
 ) -> bool:
@@ -167,20 +178,21 @@ def process_change(
     new_path_len = len(new_path)
     if change:
         if check_conflict(fs=fs, path=path, new_path=new_path):
-            print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
+            logger.error(f"conflict preventing renaming: {path} -> {new_path}")
         else:
-            if rename(fs=fs, old=path, new=new_path) and not quiet:
-                print(f"[rename] {path} -> {new_path}")
+            if rename(fs=fs, old=path, new=new_path):
+                logger.info(f"renamed: {path} -> {new_path}")
+            else:
+                log_access_denied(path=path, logger=logger)
+                return False
     else:
-        if verbose and not quiet:
-            print(f"[ok] {new_path}")
+        logger.debug(f"unchanged: {path}")
     if error_limit is not None:
         if new_path_len > error_limit:
-            print(f"[ERROR] (path exceeds {error_limit} characters) {new_path}")
+            logger.error(f"error (path exceeds {error_limit} characters): {new_path}")
         return False
     if warn_limit is not None:
-        if new_path_len > warn_limit and not quiet:
-            print(f"[WARNING] (path exceeds {warn_limit} characters) {new_path}")
+        logger.warning(f"warning (path exceeds {warn_limit} characters): {new_path}")
     return not change
 
 
@@ -193,8 +205,7 @@ def process_file(
     prefixes: Set[str],
     suffixes: Set[str],
     ignore_exts: Set[str],
-    verbose: bool,
-    quiet: bool,
+    logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
@@ -202,8 +213,7 @@ def process_file(
 ) -> bool:
     suffix = splitext(path)[1]
     if suffix in ignore_exts:
-        if verbose and not quiet:
-            print(f"[ignore] {path}")
+        log_ignored(path=path, logger=logger)
         return True
     if suffix in ok_exts:
         stem = splitext(basename(path))[0]
@@ -227,8 +237,7 @@ def process_file(
         fs=fs,
         path=path,
         new_path=new_path,
-        verbose=verbose,
-        quiet=quiet,
+        logger=logger,
         warn_limit=warn_limit,
         error_limit=error_limit,
     )
@@ -246,8 +255,7 @@ def process_dir(
     ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
-    verbose: bool,
-    quiet: bool,
+    logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
@@ -271,8 +279,7 @@ def process_dir(
                 fs=fs,
                 path=path,
                 new_path=new_path,
-                verbose=verbose,
-                quiet=quiet,
+                logger=logger,
                 warn_limit=warn_limit,
                 error_limit=error_limit,
             )
@@ -295,8 +302,7 @@ def process_dir(
                         ignore_exts=ignore_exts,
                         ignore_root=False,
                         no_recurse=False,
-                        quiet=quiet,
-                        verbose=verbose,
+                        logger=logger,
                         warn_limit=warn_limit,
                         error_limit=error_limit,
                         max_length=max_length,
@@ -305,10 +311,10 @@ def process_dir(
                     and ok
                 )
         except DirectoryExpected:
-            print(f"[ERROR] (access denied) {path}")
+            log_access_denied(path=path, logger=logger)
             return False
-    elif verbose and not quiet:
-        print(f"[ignore] {path}")
+    else:
+        log_ignored(path=path, logger=logger)
     return ok
 
 
@@ -324,16 +330,14 @@ def process_path(
     ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
-    verbose: bool,
-    quiet: bool,
+    logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
     max_length: Optional[int],
     n_digits: Optional[int],
 ) -> bool:
     if splitext(basename(path))[0] in ignore_stems:
-        if verbose and not quiet:
-            print(f"[ignore] {path}")
+        log_ignored(path=path, logger=logger)
         return True
     elif fs.isdir(path):
         return process_dir(
@@ -348,8 +352,7 @@ def process_path(
             ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=no_recurse,
-            verbose=verbose,
-            quiet=quiet,
+            logger=logger,
             warn_limit=warn_limit,
             error_limit=error_limit,
             max_length=max_length,
@@ -365,18 +368,18 @@ def process_path(
             prefixes=prefixes,
             suffixes=suffixes,
             ignore_exts=ignore_exts,
-            quiet=quiet,
-            verbose=verbose,
+            logger=logger,
             warn_limit=warn_limit,
             error_limit=error_limit,
             max_length=max_length,
             n_digits=n_digits,
         )
     else:
+        logger.debug(f"skipped (not a file or directory): {path}")
         return True
 
 
-def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
+def get_fs(path: str, ignore_root: bool, dry_run: bool, logger: Logger) -> FS:
     ok = True
     path_obj = Path(path).resolve()
     if path_obj.as_posix() == Path(os.getcwd()).resolve().as_posix():
@@ -390,10 +393,7 @@ def get_fs(path: str, ignore_root: bool, dry_run: bool) -> FS:
         fs = MemoryFS()
         with OSFS(root) as osfs:
             ok = copy_structure(
-                src_fs=osfs,
-                dst_fs=fs,
-                src_path=start,
-                dst_path=start,
+                src_fs=osfs, dst_fs=fs, src_path=start, dst_path=start, logger=logger
             )
     else:
         fs = OSFS(root)
