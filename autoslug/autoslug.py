@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 
 from fs.base import FS
 from fs.errors import DirectoryExpected, FileExpected
@@ -122,41 +122,34 @@ def process_ext(ext: str, mappings: Dict[str, str]) -> str:
         return ext
 
 
-def get_rename_function(fs: FS, path: str) -> Callable[[str, str], bool]:
+def os_rename(fs: FS, old: str, new: str) -> bool:
+    try:
+        os.rename(src=fs.getospath(old), dst=fs.getospath(new))
+    except PermissionError:
+        print(f"[ERROR] (access denied) {old} -> {new}")
+        return False
+    return True
+
+
+def fs_rename(fs: FS, old: str, new: str) -> bool:
+    try:
+        if fs.isfile(old):
+            fs.move(src_path=old, dst_path=new)
+        else:
+            fs.movedir(src_path=old, dst_path=new, create=True)
+    except (FileExpected, DirectoryExpected):
+        print(f"[ERROR] (access denied) {old} -> {new}")
+        return False
+    return True
+
+
+def rename(fs: FS, old: str, new: str) -> bool:
     try:
         if fs.getmeta()["supports_rename"]:
-
-            def rename(old: str, new: str) -> bool:
-                try:
-                    os.rename(src=fs.getospath(old), dst=Path(new).name)
-                except PermissionError:
-                    print(f"[ERROR] (access denied) {old} -> {new}")
-                    return False
-                return True
-
+            return os_rename(fs=fs, old=old, new=new)
     except KeyError:
         pass
-    if fs.isfile(path):
-
-        def rename(old: str, new: str) -> bool:
-            try:
-                fs.move(src_path=old, dst_path=new)
-            except FileExpected:
-                print(f"[ERROR] (access denied) {old} -> {new}")
-                return False
-            return True
-
-    else:
-
-        def rename(old: str, new: str) -> bool:
-            try:
-                fs.movedir(src_path=old, dst_path=new, create=True)
-            except DirectoryExpected:
-                print(f"[ERROR] (access denied) {old} -> {new}")
-                return False
-            return True
-
-    return rename
+    return fs_rename(fs=fs, old=old, new=new)
 
 
 def check_conflict(fs: FS, path: str, new_path: str) -> bool:
@@ -184,7 +177,7 @@ def process_change(
         if check_conflict(fs=fs, path=path, new_path=new_path):
             print("[ERROR] (conflict preventing renaming) " f"{path} -> {new_path}")
         else:
-            if get_rename_function(fs=fs, path=path)(path, new_path) and not quiet:
+            if rename(fs=fs, old=path, new=new_path) and not quiet:
                 print(f"[rename] {path} -> {new_path}")
     else:
         if verbose and not quiet:
