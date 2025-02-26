@@ -1,55 +1,18 @@
-import os
 import re
 from logging import Logger
-from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
 from fs.base import FS
-from fs.errors import DirectoryExpected, FileExpected
-from fs.memoryfs import MemoryFS
-from fs.osfs import OSFS
+from fs.errors import DirectoryExpected
 from fs.path import basename, dirname, join, splitext
 from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
-
-def log_access_denied(path: str, logger: Logger) -> None:
-    logger.error(f"access denied: {path}")
-    return None
+from autoslug.filesystem import rename
+from autoslug.logging import log_access_denied, log_ignored
 
 
-def log_ignored(path: str, logger: Logger) -> None:
-    logger.debug(f"ignored: {path}")
-    return None
-
-
-def copy_structure(
-    src_fs: FS, dst_fs: FS, src_path: str, dst_path: str, logger: Logger
-) -> bool:
-    ok = True
-    if src_fs.isdir(src_path):
-        dst_fs.makedirs(dst_path, recreate=True)
-        try:
-            for subpath in src_fs.scandir(src_path):
-                ok = (
-                    copy_structure(
-                        src_fs=src_fs,
-                        dst_fs=dst_fs,
-                        src_path=join(src_path, subpath.name),
-                        dst_path=join(dst_path, subpath.name),
-                        logger=logger,
-                    )
-                    and ok
-                )
-        except DirectoryExpected:
-            log_access_denied(path=src_path, logger=logger)
-            return False
-    elif src_fs.isfile(src_path):
-        dst_fs.create(dst_path)
-    return ok
-
-
-def handle_affixes(
+def _handle_affixes(
     stem: str, prefixes: Set[str], suffixes: Set[str]
 ) -> Tuple[str, str, str]:
     prefix_pattern = "|".join(re.escape(prefix) + "+" for prefix in prefixes)
@@ -66,7 +29,7 @@ def handle_affixes(
     return prefix, stem, suffix
 
 
-def shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
+def _shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
     if len(stem) <= max_length:
         return stem
     parts = stem.split(sep)
@@ -78,7 +41,7 @@ def shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
     return new_stem
 
 
-def extract_leading_digits(stem: str, sep: str, n: Optional[int]) -> Tuple[str, str]:
+def _extract_leading_digits(stem: str, sep: str, n: Optional[int]) -> Tuple[str, str]:
     if n is not None:
         parts = stem.split(sep)
         try:
@@ -90,7 +53,7 @@ def extract_leading_digits(stem: str, sep: str, n: Optional[int]) -> Tuple[str, 
     return "", stem
 
 
-def process_stem(
+def _process_stem(
     stem: str,
     dash: bool,
     prefixes: Set[str],
@@ -98,7 +61,7 @@ def process_stem(
     max_length: Optional[int],
     n_digits: Optional[int],
 ) -> str:
-    prefix, stem, suffix = handle_affixes(
+    prefix, stem, suffix = _handle_affixes(
         stem=stem, prefixes=prefixes, suffixes=suffixes
     )
     stem = parameterize(
@@ -111,52 +74,24 @@ def process_stem(
     stem = dasherize(stem) if dash else underscore(stem)
     sep = "-" if dash else "_"
     stem = re.sub(f"{sep}+", sep, stem).strip(sep)
-    digits, stem = extract_leading_digits(stem=stem, sep=sep, n=n_digits)
+    digits, stem = _extract_leading_digits(stem=stem, sep=sep, n=n_digits)
     if max_length is not None:
         if prefix is not None:
             max_length -= len(prefix)
             if len(digits) > 0:
                 max_length -= len(digits) + len(sep)
-        stem = shorten_stem(stem=stem, max_length=max_length, sep=sep)
+        stem = _shorten_stem(stem=stem, max_length=max_length, sep=sep)
     return prefix + (digits + sep if len(digits) > 0 else "") + stem + suffix
 
 
-def process_ext(ext: str, mappings: Dict[str, str]) -> str:
+def _process_ext(ext: str, mappings: Dict[str, str]) -> str:
     try:
         return mappings[ext]
     except KeyError:
         return ext
 
 
-def os_rename(fs: FS, old: str, new: str) -> bool:
-    try:
-        os.rename(src=fs.getospath(old), dst=fs.getospath(new))
-    except PermissionError:
-        return False
-    return True
-
-
-def fs_rename(fs: FS, old: str, new: str) -> bool:
-    try:
-        if fs.isfile(old):
-            fs.move(src_path=old, dst_path=new)
-        else:
-            fs.movedir(src_path=old, dst_path=new, create=True)
-    except (FileExpected, DirectoryExpected):
-        return False
-    return True
-
-
-def rename(fs: FS, old: str, new: str) -> bool:
-    try:
-        if fs.getmeta()["supports_rename"]:
-            return os_rename(fs=fs, old=old, new=new)
-    except KeyError:
-        pass
-    return fs_rename(fs=fs, old=old, new=new)
-
-
-def check_conflict(fs: FS, path: str, new_path: str) -> bool:
+def _check_conflict(fs: FS, path: str, new_path: str) -> bool:
     try:
         if fs.getmeta()["case_insensitive"]:
             if path.lower() == new_path.lower():
@@ -166,7 +101,7 @@ def check_conflict(fs: FS, path: str, new_path: str) -> bool:
     return fs.exists(new_path)
 
 
-def process_change(
+def _process_change(
     fs: FS,
     path: str,
     new_path: str,
@@ -177,7 +112,7 @@ def process_change(
     change = path != new_path
     new_path_len = len(new_path)
     if change:
-        if check_conflict(fs=fs, path=path, new_path=new_path):
+        if _check_conflict(fs=fs, path=path, new_path=new_path):
             logger.error(f"conflict preventing renaming: {path} -> {new_path}")
         else:
             if rename(fs=fs, old=path, new=new_path):
@@ -196,7 +131,7 @@ def process_change(
     return not change
 
 
-def process_file(
+def _process_file(
     fs: FS,
     path: str,
     ok_exts: Set[str],
@@ -223,7 +158,7 @@ def process_file(
     dash = suffix not in no_dash_exts
     new_path = join(
         dirname(path),
-        process_stem(
+        _process_stem(
             stem=stem,
             dash=dash,
             prefixes=prefixes,
@@ -231,9 +166,9 @@ def process_file(
             max_length=max_length,
             n_digits=n_digits,
         )
-        + process_ext(ext=suffix, mappings=ext_map),
+        + _process_ext(ext=suffix, mappings=ext_map),
     )
-    return process_change(
+    return _process_change(
         fs=fs,
         path=path,
         new_path=new_path,
@@ -243,7 +178,7 @@ def process_file(
     )
 
 
-def process_dir(
+def _process_dir(
     fs: FS,
     path: str,
     ignore_stems: Set[str],
@@ -265,7 +200,7 @@ def process_dir(
     if not ignore_root:
         new_path = join(
             dirname(path),
-            process_stem(
+            _process_stem(
                 stem=basename(path),
                 dash=True,
                 prefixes=prefixes,
@@ -275,7 +210,7 @@ def process_dir(
             ),
         )
         ok = (
-            process_change(
+            _process_change(
                 fs=fs,
                 path=path,
                 new_path=new_path,
@@ -340,7 +275,7 @@ def process_path(
         log_ignored(path=path, logger=logger)
         return True
     elif fs.isdir(path):
-        return process_dir(
+        return _process_dir(
             fs=fs,
             path=path,
             ignore_stems=ignore_stems,
@@ -359,7 +294,7 @@ def process_path(
             n_digits=n_digits,
         )
     elif fs.isfile(path):
-        return process_file(
+        return _process_file(
             fs=fs,
             path=path,
             ok_exts=ok_exts,
@@ -377,24 +312,3 @@ def process_path(
     else:
         logger.debug(f"skipped (not a file or directory): {path}")
         return True
-
-
-def get_fs(path: str, ignore_root: bool, dry_run: bool, logger: Logger) -> FS:
-    ok = True
-    path_obj = Path(path).resolve()
-    if path_obj.as_posix() == Path(os.getcwd()).resolve().as_posix():
-        ignore_root = True
-        root = path_obj.as_posix()
-        start = "/"
-    else:
-        root = path_obj.parent.as_posix()
-        start = path_obj.name
-    if dry_run:
-        fs = MemoryFS()
-        with OSFS(root) as osfs:
-            ok = copy_structure(
-                src_fs=osfs, dst_fs=fs, src_path=start, dst_path=start, logger=logger
-            )
-    else:
-        fs = OSFS(root)
-    return fs, start, ignore_root, ok

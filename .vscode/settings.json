@@ -4,6 +4,7 @@
     "getmeta",
     "getospath",
     "ipynb",
+    "levelname",
     "memoryfs",
     "movedir",
     "osfs",
