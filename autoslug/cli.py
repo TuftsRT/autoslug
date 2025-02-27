@@ -1,22 +1,14 @@
-from argparse import ArgumentParser, Namespace
 from logging import DEBUG, ERROR, INFO, Logger
-from mimetypes import types_map
 from pathlib import Path
 from subprocess import DEVNULL, CalledProcessError, run
-from typing import List, Optional, Set, Tuple
+from typing import Optional, Tuple
 
+from autoslug.arguments import OPTIONAL, POSITIONAL
 from autoslug.autoslug import process_path
-from autoslug.defaults import (
-    DESCRIPTION,
-    EXT_MAP,
-    IGNORE_GLOBS,
-    NO_DASH_EXTS,
-    OK_EXTS,
-    PREFIXES,
-    SUFFIXES,
-)
+from autoslug.defaults import DESCRIPTION, EXT_MAP
 from autoslug.filesystem import get_filesystem
 from autoslug.logging import get_logger
+from autoslug.parser import parse_arguments
 
 
 def get_log_level(quiet: bool, verbose: bool) -> int:
@@ -25,12 +17,6 @@ def get_log_level(quiet: bool, verbose: bool) -> int:
     elif verbose:
         return DEBUG
     return INFO
-
-
-def get_ok_exts(additions: Set[str]) -> Set[str]:
-    ext_set = set(types_map.keys())
-    ext_set.update(additions)
-    return ext_set
 
 
 def is_git_repository(path: Path) -> Tuple[bool, Optional[bool]]:
@@ -75,223 +61,43 @@ def perform_checks(path: Path, force: bool, logger: Logger) -> None:
     return None
 
 
-def get_help_text(
-    message: str, defaults: Set[str], suffix: Optional[str] = None
-) -> str:
-    if not defaults:
-        return message
-    defaults: list[str] = sorted(defaults)
-    text = message + " in addition to "
-    if len(defaults) >= 2 and suffix is not None:
-        text += '"' + '", "'.join(defaults) + '", and ' + suffix
-    elif len(defaults) > 2:
-        text += '"' + '", "'.join(defaults[:-1]) + '", and "' + defaults[-1] + '"'
-    elif len(defaults) == 2:
-        text += f'"{defaults[0]}" and "{defaults[1]}"'
-    elif suffix is not None:
-        text += '"' + defaults[0] + '" and ' + suffix
-    else:
-        text += '"' + defaults[0] + '"'
-    return text
-
-
-def parse_arguments(
-    ok_exts: Set[str],
-    ignore_globs: List[str],
-    no_dash_exts: Set[str],
-    prefixes: Set[str],
-    suffixes: Set[str],
-) -> Namespace:
-    parser = ArgumentParser(description=DESCRIPTION)
-    parser.add_argument(
-        "path",
-        type=str,
-        help="path to the file or directory to process",
-        metavar="<path>",
-    )
-    parser.add_argument(
-        "-d",
-        "-n",
-        "--dry-run",
-        action="store_true",
-        help="do not actually rename files or directories",
-    )
-    parser.add_argument(
-        "-f",
-        "--force",
-        action="store_true",
-        help="disable protections and force processing",
-    )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="suppress all output except errors"
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help=(
-            "output information about all paths processed"
-            "(only renamed paths outputted by default)"
-        ),
-    )
-    parser.add_argument(
-        "--error-limit",
-        type=int,
-        default=None,
-        help="exit failure if any path exceeds this character limit",
-        metavar="<int>",
-    )
-    parser.add_argument(
-        "--ignore-glob",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(message="glob patterns to ignore", defaults=ignore_globs),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--ignore-root",
-        action="store_true",
-        help=(
-            "only process children of the specified path"
-            "(implied when running in current directory)"
-        ),
-    )
-    parser.add_argument(
-        "--log-file",
-        type=str,
-        default=None,
-        help="log output to specified file",
-        metavar="<path>",
-    )
-    parser.add_argument(
-        "--max-length",
-        type=int,
-        default=None,
-        help=(
-            "attempt to shorten file and directory names to not"
-            "exceed this number of characters (excluding extension)"
-        ),
-        metavar="<int>",
-    )
-    parser.add_argument(
-        "--no-dash",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(
-            message=(
-                "file extensions (with period) where "
-                "underscores should be used instead of dashes"
-            ),
-            defaults=no_dash_exts,
-        ),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--no-recurse",
-        action="store_true",
-        help="do not recurse into subdirectories",
-    )
-    parser.add_argument(
-        "--num-digits",
-        type=int,
-        default=None,
-        help="number of digits any numerical prefixes should consist of",
-        metavar="<int>",
-    )
-    parser.add_argument(
-        "--ok-ext",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(
-            message="file extensions (with period) to recognize",
-            defaults=ok_exts,
-            suffix="common MIME types",
-        ),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--prefix",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(message="prefixes to not change", defaults=prefixes),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--suffix",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(message="suffixes to not change", defaults=suffixes),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--warn-limit",
-        type=int,
-        default=None,
-        help="output warning if path exceeds this character limit",
-        metavar="<int>",
-    )
-    return parser.parse_args()
-
-
 def main() -> None:
-    ok_exts = OK_EXTS.copy()
-    ext_map = EXT_MAP.copy()
-    ignore_globs = IGNORE_GLOBS.copy()
-    no_dash_exts = NO_DASH_EXTS.copy()
-    prefixes = PREFIXES.copy()
-    suffixes = SUFFIXES.copy()
 
     args = parse_arguments(
-        ok_exts=ok_exts,
-        ignore_globs=ignore_globs,
-        no_dash_exts=no_dash_exts,
-        prefixes=prefixes,
-        suffixes=suffixes,
+        description=DESCRIPTION, positional=POSITIONAL, optional=OPTIONAL
     )
-
-    ok_exts.update(args.ok_ext)
-    ignore_globs.update(args.ignore_glob)
-    no_dash_exts.update(args.no_dash)
-    prefixes.update(args.prefix)
-    suffixes.update(args.suffix)
 
     logger = get_logger(
-        console_level=get_log_level(args.quiet, args.verbose), log_file=args.log_file
+        console_level=get_log_level(args["quiet"], args["verbose"]),
+        log_file=args["log_file"],
     )
 
-    path = Path(args.path).resolve()
-
-    perform_checks(path=path, force=args.force, logger=logger)
+    perform_checks(path=args["path"], force=args["force"], logger=logger)
 
     fs, start, ignore_root, ok = get_filesystem(
-        path=path,
-        ignore_root=args.ignore_root,
-        dry_run=args.dry_run,
+        path=args["path"],
+        ignore_root=args["ignore_root"],
+        dry_run=args["dry_run"],
         logger=logger,
     )
 
     ok = (
         process_path(
+            error_limit=args["error_limit"],
+            ext_map=EXT_MAP,
             fs=fs,
-            path=start,
-            ignore_globs=ignore_globs,
-            ok_exts=get_ok_exts(additions=ok_exts),
-            no_dash_exts=no_dash_exts,
-            ext_map=ext_map,
-            prefixes=prefixes,
-            suffixes=suffixes,
+            ignore_globs=args["ignore_globs"],
             ignore_root=ignore_root,
-            no_recurse=args.no_recurse,
             logger=logger,
-            warn_limit=args.warn_limit,
-            error_limit=args.error_limit,
-            max_length=args.max_length,
-            n_digits=args.num_digits,
+            max_length=args["max_length"],
+            n_digits=args["num_digits"],
+            no_dash_exts=args["no_dash_exts"],
+            no_recurse=args["no_recurse"],
+            ok_exts=args["ok_exts"],
+            path=start,
+            prefixes=args["prefixes"],
+            suffixes=args["suffixes"],
+            warn_limit=args["warn_limit"],
         )
         and ok
     )

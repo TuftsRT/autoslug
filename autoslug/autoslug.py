@@ -86,7 +86,7 @@ def _process_stem(
 
 def _process_ext(ext: str, mappings: Dict[str, str]) -> str:
     try:
-        return mappings[ext]
+        return f".{mappings[ext.strip('.')]}"
     except KeyError:
         return ext
 

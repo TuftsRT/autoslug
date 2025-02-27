@@ -1,7 +1,7 @@
 from typing import Dict, Final, Set
 
 EXT_MAP: Final[Dict[str, str]] = {
-    ".yml": ".yaml",
+    "yml": "yaml",
 }
 IGNORE_GLOBS: Final[Set[str]] = {
     "**/__pycache__",
@@ -11,18 +11,18 @@ IGNORE_GLOBS: Final[Set[str]] = {
     "**/README*",
 }
 NO_DASH_EXTS: Final[Set[str]] = {
-    ".py",
+    "py",
 }
 OK_EXTS: Final[Set[str]] = {
-    ".cmd",
-    ".ipynb",
-    ".md",
-    ".ps1",
-    ".R",
-    ".Rmd",
-    ".rst",
-    ".yaml",
-    ".yml",
+    "cmd",
+    "ipynb",
+    "md",
+    "ps1",
+    "R",
+    "Rmd",
+    "rst",
+    "yaml",
+    "yml",
 }
 PREFIXES: Final[Set[str]] = {
     "_",
