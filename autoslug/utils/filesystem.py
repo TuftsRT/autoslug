@@ -10,7 +10,7 @@ from fs.memoryfs import MemoryFS
 from fs.osfs import OSFS
 from fs.path import join
 
-from autoslug.logging import log_access_denied
+from autoslug.utils.logging import log_access_denied
 
 
 def _os_rename(fs: FS, old: str, new: str) -> bool:

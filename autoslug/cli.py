@@ -3,12 +3,12 @@ from pathlib import Path
 from subprocess import DEVNULL, CalledProcessError, run
 from typing import Optional, Tuple
 
-from autoslug.arguments import OPTIONAL, POSITIONAL
 from autoslug.autoslug import process_path
-from autoslug.defaults import DESCRIPTION, EXT_MAP
-from autoslug.filesystem import get_filesystem
-from autoslug.logging import get_logger
-from autoslug.parser import parse_arguments
+from autoslug.config.arguments import OPTIONAL, POSITIONAL
+from autoslug.config.defaults import DESCRIPTION, EXT_MAP
+from autoslug.utils.filesystem import get_filesystem
+from autoslug.utils.logging import get_logger
+from autoslug.utils.parser import parse_arguments
 
 
 def get_log_level(quiet: bool, verbose: bool) -> int:

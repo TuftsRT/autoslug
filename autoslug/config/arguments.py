@@ -2,7 +2,13 @@ from mimetypes import types_map
 from pathlib import Path
 from typing import Set
 
-from autoslug.defaults import IGNORE_GLOBS, NO_DASH_EXTS, OK_EXTS, PREFIXES, SUFFIXES
+from autoslug.config.defaults import (
+    IGNORE_GLOBS,
+    NO_DASH_EXTS,
+    OK_EXTS,
+    PREFIXES,
+    SUFFIXES,
+)
 
 
 def add_mime_types(exts: Set[str]) -> Set[str]:

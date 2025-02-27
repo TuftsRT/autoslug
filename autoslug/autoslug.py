@@ -8,8 +8,8 @@ from fs.path import basename, dirname, join, splitext
 from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
-from autoslug.filesystem import match_globs, rename
-from autoslug.logging import log_access_denied, log_ignored
+from autoslug.utils.filesystem import match_globs, rename
+from autoslug.utils.logging import log_access_denied, log_ignored
 
 
 def _handle_affixes(

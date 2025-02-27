@@ -8,7 +8,11 @@ from logging import (
     getLogger,
 )
 
-from autoslug.defaults import LOG_CONSOLE_FORMAT, LOG_DATE_FORMAT, LOG_FILE_FORMAT
+from autoslug.config.defaults import (
+    LOG_CONSOLE_FORMAT,
+    LOG_DATE_FORMAT,
+    LOG_FILE_FORMAT,
+)
 
 
 def get_logger(
@@ -34,6 +38,11 @@ def get_logger(
 
 def log_access_denied(path: str, logger: Logger) -> None:
     logger.error(f"access denied: {path}")
+    return None
+
+
+def log_ignored(path: str, logger: Logger) -> None:
+    logger.debug(f"ignored: {path}")
     return None
 
 
