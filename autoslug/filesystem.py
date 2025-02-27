@@ -5,6 +5,7 @@ from typing import Tuple
 
 from fs.base import FS
 from fs.errors import DirectoryExpected, FileExpected
+from fs.glob import imatch, match
 from fs.memoryfs import MemoryFS
 from fs.osfs import OSFS
 from fs.path import join
@@ -38,6 +39,12 @@ def rename(fs: FS, old: str, new: str) -> bool:
     except KeyError:
         pass
     return _fs_rename(fs=fs, old=old, new=new)
+
+
+def match_globs(fs: FS, path: str, globs: Tuple[str]) -> bool:
+    if fs.getmeta()["case_insensitive"]:
+        return any([imatch(glob, path) for glob in globs])
+    return any([match(glob, path) for glob in globs])
 
 
 def _copy_structure(

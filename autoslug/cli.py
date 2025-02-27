@@ -3,14 +3,13 @@ from logging import DEBUG, ERROR, INFO, Logger
 from mimetypes import types_map
 from pathlib import Path
 from subprocess import DEVNULL, CalledProcessError, run
-from typing import Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from autoslug.autoslug import process_path
 from autoslug.defaults import (
     DESCRIPTION,
     EXT_MAP,
-    IGNORE_EXTS,
-    IGNORE_STEMS,
+    IGNORE_GLOBS,
     NO_DASH_EXTS,
     OK_EXTS,
     PREFIXES,
@@ -98,8 +97,7 @@ def get_help_text(
 
 def parse_arguments(
     ok_exts: Set[str],
-    ignore_stems: Set[str],
-    ignore_exts: Set[str],
+    ignore_globs: List[str],
     no_dash_exts: Set[str],
     prefixes: Set[str],
     suffixes: Set[str],
@@ -144,23 +142,11 @@ def parse_arguments(
         metavar="<int>",
     )
     parser.add_argument(
-        "--ignore",
+        "--ignore-glob",
         type=str,
         nargs="*",
         default=[],
-        help=get_help_text(
-            message="stems to ignore (without extension)", defaults=ignore_stems
-        ),
-        metavar="<str>",
-    )
-    parser.add_argument(
-        "--ignore-ext",
-        type=str,
-        nargs="*",
-        default=[],
-        help=get_help_text(
-            message="file extensions (with period) to ignore", defaults=ignore_exts
-        ),
+        help=get_help_text(message="glob patterns to ignore", defaults=ignore_globs),
         metavar="<str>",
     )
     parser.add_argument(
@@ -255,27 +241,24 @@ def parse_arguments(
 def main() -> None:
     ok_exts = OK_EXTS.copy()
     ext_map = EXT_MAP.copy()
-    ignore_stems = IGNORE_STEMS.copy()
+    ignore_globs = IGNORE_GLOBS.copy()
     no_dash_exts = NO_DASH_EXTS.copy()
     prefixes = PREFIXES.copy()
     suffixes = SUFFIXES.copy()
-    ignore_exts = IGNORE_EXTS.copy()
 
     args = parse_arguments(
         ok_exts=ok_exts,
-        ignore_stems=ignore_stems,
-        ignore_exts=ignore_exts,
+        ignore_globs=ignore_globs,
         no_dash_exts=no_dash_exts,
         prefixes=prefixes,
         suffixes=suffixes,
     )
 
     ok_exts.update(args.ok_ext)
-    ignore_stems.update(args.ignore)
+    ignore_globs.update(args.ignore_glob)
     no_dash_exts.update(args.no_dash)
     prefixes.update(args.prefix)
     suffixes.update(args.suffix)
-    ignore_exts.update(args.ignore_ext)
 
     logger = get_logger(
         console_level=get_log_level(args.quiet, args.verbose), log_file=args.log_file
@@ -296,13 +279,12 @@ def main() -> None:
         process_path(
             fs=fs,
             path=start,
-            ignore_stems=ignore_stems,
+            ignore_globs=ignore_globs,
             ok_exts=get_ok_exts(additions=ok_exts),
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
-            ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=args.no_recurse,
             logger=logger,

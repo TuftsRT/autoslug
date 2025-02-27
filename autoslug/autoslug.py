@@ -8,7 +8,7 @@ from fs.path import basename, dirname, join, splitext
 from inflection import dasherize, parameterize, underscore
 from slugify import SLUG_OK, slugify
 
-from autoslug.filesystem import rename
+from autoslug.filesystem import match_globs, rename
 from autoslug.logging import log_access_denied, log_ignored
 
 
@@ -139,7 +139,6 @@ def _process_file(
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
-    ignore_exts: Set[str],
     logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
@@ -147,9 +146,6 @@ def _process_file(
     n_digits: Optional[int],
 ) -> bool:
     suffix = splitext(path)[1]
-    if suffix in ignore_exts:
-        log_ignored(path=path, logger=logger)
-        return True
     if suffix in ok_exts:
         stem = splitext(basename(path))[0]
     else:
@@ -181,13 +177,12 @@ def _process_file(
 def _process_dir(
     fs: FS,
     path: str,
-    ignore_stems: Set[str],
+    ignore_globs: Set[str],
     ok_exts: Set[str],
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
-    ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     logger: Logger,
@@ -228,13 +223,12 @@ def _process_dir(
                     process_path(
                         fs=fs,
                         path=join(path, subpath.name),
-                        ignore_stems=ignore_stems,
+                        ignore_globs=ignore_globs,
                         ok_exts=ok_exts,
                         no_dash_exts=no_dash_exts,
                         ext_map=ext_map,
                         prefixes=prefixes,
                         suffixes=suffixes,
-                        ignore_exts=ignore_exts,
                         ignore_root=False,
                         no_recurse=False,
                         logger=logger,
@@ -256,13 +250,12 @@ def _process_dir(
 def process_path(
     fs: FS,
     path: str,
-    ignore_stems: Set[str],
+    ignore_globs: Set[str],
     ok_exts: Set[str],
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
     prefixes: Set[str],
     suffixes: Set[str],
-    ignore_exts: Set[str],
     ignore_root: bool,
     no_recurse: bool,
     logger: Logger,
@@ -271,20 +264,19 @@ def process_path(
     max_length: Optional[int],
     n_digits: Optional[int],
 ) -> bool:
-    if splitext(basename(path))[0] in ignore_stems:
+    if match_globs(fs=fs, path=path, globs=ignore_globs):
         log_ignored(path=path, logger=logger)
         return True
     elif fs.isdir(path):
         return _process_dir(
             fs=fs,
             path=path,
-            ignore_stems=ignore_stems,
+            ignore_globs=ignore_globs,
             ok_exts=ok_exts,
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
-            ignore_exts=ignore_exts,
             ignore_root=ignore_root,
             no_recurse=no_recurse,
             logger=logger,
@@ -302,7 +294,6 @@ def process_path(
             ext_map=ext_map,
             prefixes=prefixes,
             suffixes=suffixes,
-            ignore_exts=ignore_exts,
             logger=logger,
             warn_limit=warn_limit,
             error_limit=error_limit,
