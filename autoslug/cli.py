@@ -74,6 +74,11 @@ def main() -> None:
 
     perform_checks(path=args["path"], force=args["force"], logger=logger)
 
+    if args["force"]:
+        logger.warning("disabling protections and forcing processing")
+    if args["dry_run"]:
+        logger.info("beginning dry run (no changes will be made)")
+
     fs, start, ignore_root, ok = get_filesystem(
         path=args["path"],
         ignore_root=args["ignore_root"],
