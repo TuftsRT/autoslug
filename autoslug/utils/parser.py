@@ -7,7 +7,7 @@ def _extend_help_text(
 ) -> str:
     if not defaults:
         return message
-    defaults: list[str] = sorted(defaults)
+    defaults = sorted(defaults)
     text = message + " in addition to "
     if len(defaults) >= 2 and suffix is not None:
         text += '"' + '", "'.join(defaults) + '", and ' + suffix

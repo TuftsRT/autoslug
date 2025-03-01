@@ -37,5 +37,5 @@ DESCRIPTION: Final[str] = (
 )
 
 LOG_CONSOLE_FORMAT: Final[str] = "[%(levelname)s] %(message)s"
-LOG_FILE_FORMAT: Final[str] = "%(asctime)s [%(levelname)s] %(message)s"
 LOG_DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
+LOG_FILE_FORMAT: Final[str] = "%(asctime)s [%(levelname)s] %(message)s"

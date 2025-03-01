@@ -1,4 +1,4 @@
-from logging import DEBUG, ERROR, INFO, Logger
+import logging
 from pathlib import Path
 from subprocess import DEVNULL, CalledProcessError, run
 from typing import Optional, Tuple
@@ -11,12 +11,15 @@ from autoslug.utils.logging import get_logger
 from autoslug.utils.parser import parse_arguments
 
 
-def get_log_level(quiet: bool, verbose: bool) -> int:
-    if quiet:
-        return ERROR
+def get_log_level(level: str, quiet: bool, verbose: bool) -> int:
+    if level != "INFO":
+        return getattr(logging, level)
     elif verbose:
-        return DEBUG
-    return INFO
+        return logging.DEBUG
+    elif quiet:
+        return logging.ERROR
+    else:
+        return getattr(logging, "INFO")
 
 
 def is_git_repository(path: Path) -> Tuple[bool, Optional[bool]]:
@@ -34,7 +37,7 @@ def is_git_repository(path: Path) -> Tuple[bool, Optional[bool]]:
         return False, None
 
 
-def check_git_repository(path: Path, force: bool, logger: Logger) -> None:
+def check_git_repository(path: Path, force: bool, logger: logging.Logger) -> None:
     test_ok, is_git = is_git_repository(path=path)
     if not test_ok:
         msg = "unable to determine whether path is within git repository"
@@ -48,14 +51,14 @@ def check_git_repository(path: Path, force: bool, logger: Logger) -> None:
     return None
 
 
-def assert_path(path: Path, logger: Logger) -> None:
+def assert_path(path: Path, logger: logging.Logger) -> None:
     if not path.exists():
         logger.critical(f"specified path does not exist: {path.as_posix()}")
         exit(1)
     return None
 
 
-def perform_checks(path: Path, force: bool, logger: Logger) -> None:
+def perform_checks(path: Path, force: bool, logger: logging.Logger) -> None:
     assert_path(path=path, logger=logger)
     check_git_repository(path=path, force=force, logger=logger)
     return None
@@ -68,7 +71,9 @@ def main() -> None:
     )
 
     logger = get_logger(
-        console_level=get_log_level(args["quiet"], args["verbose"]),
+        console_level=get_log_level(
+            level=args["log_level"], quiet=args["quiet"], verbose=args["verbose"]
+        ),
         log_file=args["log_file"],
     )
 

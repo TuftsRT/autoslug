@@ -34,8 +34,11 @@ OPTIONAL = {
     },
     "error_limit": {
         "default": None,
-        "help": "exit failure if any path exceeds this character limit",
-        "metavar": "<int>",
+        "help": (
+            "set exit level to failure if any paths exceed this character limit "
+            "(will still attempt to process all paths)"
+        ),
+        "metavar": "<n>",
         "type": int,
     },
     "force": {
@@ -61,8 +64,22 @@ OPTIONAL = {
     },
     "log_file": {
         "default": None,
-        "help": "log output to specified file",
+        "help": (
+            "log output to specified file "
+            "(all messages logged to file regardless of log level)"
+        ),
         "metavar": "<path>",
+        "type": str,
+    },
+    "log_level": {
+        "choices": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        "default": "INFO",
+        "help": (
+            "set the console logging level to one of "
+            "DEBUG, INFO (default), WARNING, ERROR, or CRITICAL "
+            "(overrides --quiet and --verbose)"
+        ),
+        "metavar": "<level>",
         "type": str,
     },
     "max_length": {
@@ -88,11 +105,14 @@ OPTIONAL = {
     },
     "no_recurse": {
         "action": "store_true",
-        "help": "do not recurse into subdirectories",
+        "help": "do not recurse into subdirectories (only process specified path)",
     },
     "num_digits": {
         "default": None,
-        "help": "number of digits any numerical prefixes should consist of",
+        "help": (
+            "attempt to pad or round any existing numerical prefixes "
+            "to consist of this many digits"
+        ),
         "metavar": "<n>",
         "type": int,
     },
@@ -124,7 +144,10 @@ OPTIONAL = {
     },
     "quiet": {
         "action": "store_true",
-        "help": "suppress all output except errors",
+        "help": (
+            "suppress all output except errors "
+            "(equivalent to setting --log-level=ERROR)"
+        ),
         "shorthands": ["q"],
     },
     "suffixes": {
@@ -139,14 +162,17 @@ OPTIONAL = {
     "verbose": {
         "action": "store_true",
         "help": (
-            "output information about all paths processed "
-            "(only renamed paths outputted by default)"
+            "report skipped and ignored paths in addition to renamed ones"
+            "(equivalent to setting --log-level=DEBUG, overrides --quiet)"
         ),
         "shorthands": ["v"],
     },
     "warn_limit": {
         "default": None,
-        "help": "output warning if path exceeds this character limit",
+        "help": (
+            "output warning if path exceeds this character limit "
+            "(does not affect exit level)"
+        ),
         "metavar": "<n>",
         "type": int,
     },
