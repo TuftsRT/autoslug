@@ -1,5 +1,5 @@
+import os
 from logging import Logger
-from os import getcwd, rename
 from pathlib import Path
 from typing import Tuple
 
@@ -15,7 +15,7 @@ from autoslug.utils.logging import log_access_denied
 
 def _os_rename(fs: FS, old: str, new: str) -> bool:
     try:
-        rename(src=fs.getospath(old), dst=fs.getospath(new))
+        os.rename(src=fs.getospath(old), dst=fs.getospath(new))
     except PermissionError:
         return False
     return True
@@ -77,7 +77,7 @@ def get_filesystem(
     path: Path, ignore_root: bool, dry_run: bool, logger: Logger
 ) -> Tuple[FS, str, bool, bool]:
     ok = True
-    if path.resolve().as_posix() == Path(getcwd()).resolve().as_posix():
+    if path.resolve().as_posix() == Path(os.getcwd()).resolve().as_posix():
         ignore_root = True
         root = path.as_posix()
         start = "/"
