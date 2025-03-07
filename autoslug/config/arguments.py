@@ -2,13 +2,13 @@ from mimetypes import types_map
 from pathlib import Path
 from typing import Set
 
+from autoslug.__version__ import __version__
 from autoslug.config.defaults import (
     IGNORE_GLOBS,
     NO_DASH_EXTS,
     OK_EXTS,
     PREFIXES,
     SUFFIXES,
-    VERSION,
 )
 
 
@@ -171,7 +171,7 @@ OPTIONAL = {
     "version": {
         "action": "version",
         "help": "display version information and exit",
-        "version": f"%(prog)s {VERSION}",
+        "version": f"%(prog)s {__version__}",
     },
     "warn_limit": {
         "default": None,

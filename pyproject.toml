@@ -50,4 +50,4 @@ repository = "https://github.com/tuftsrt/autoslug"
 autoslug = "autoslug.cli:main"
 
 [tool.hatch.version]
-path = "autoslug/config/defaults.py"
+path = "autoslug/__version__.py"

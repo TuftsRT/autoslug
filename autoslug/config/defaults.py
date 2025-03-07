@@ -1,7 +1,5 @@
 from typing import Dict, Final, Set
 
-VERSION: Final[str] = "1.0.0"
-
 EXT_MAP: Final[Dict[str, str]] = {
     "yml": "yaml",
 }
