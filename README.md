@@ -6,8 +6,10 @@ Developed and maintained by Research Technology (RT), Tufts Technology Services 
 
 ## Installation
 
+Install via [`pipx`](https://github.com/pypa/pipx) to use as a standalone command-line tool.
+
 ```
-pip install autoslug
+pipx install autoslug
 ```
 
 ## Usage

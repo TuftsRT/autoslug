@@ -9,6 +9,7 @@
     "movedir",
     "nodefaults",
     "osfs",
+    "pipx",
     "pycache",
     "urlify"
   ]
