@@ -8,6 +8,7 @@ from autoslug.config.defaults import (
     OK_EXTS,
     PREFIXES,
     SUFFIXES,
+    VERSION,
 )
 
 
@@ -166,6 +167,11 @@ OPTIONAL = {
             "(equivalent to setting --log-level=DEBUG, overrides --quiet)"
         ),
         "shorthands": ["v"],
+    },
+    "version": {
+        "action": "version",
+        "help": "display version information and exit",
+        "version": f"%(prog)s {VERSION}",
     },
     "warn_limit": {
         "default": None,
