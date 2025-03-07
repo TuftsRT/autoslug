@@ -62,7 +62,7 @@ autoslug [options] <path>
 - `--num-digits <n>`
   - attempt to pad or round any existing numerical prefixes to consist of this many digits
 - `--ok-exts <ext>`
-  - file extensions (without periods) to recognize in addition to and common MIME types and
+  - file extensions (without periods) to recognize in addition to common MIME types and
     - `cmd`
     - `ipynb`
     - `md`
