@@ -2,4 +2,7 @@
   name: autoslug
   entry: autoslug
   language: python
+  files: "$^"
+  always_run: true
+  verbose: true
   description: automatically rename files and directories to be URL-friendly
