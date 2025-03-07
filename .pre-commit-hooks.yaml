@@ -1,0 +1,5 @@
+- id: autoslug
+  name: autoslug
+  entry: autoslug
+  language: python
+  description: automatically rename files and directories to be URL-friendly
