@@ -2,6 +2,8 @@
 
 Command-line tool to automatically rename files and directories to be URL-friendly. Ensures all names consist only of lowercase characters, numbers, and dashes (or underscores if the file type does not usually support dashes in file names). Ignores files with common naming conventions (such as `README` and `LICENSE`) and various artifacts. Does not modify leading periods and both leading and trailing underscores to support dotfiles and other special files. Supports formatting of detected numerical prefixes and shortening of names. See usage guide for details.
 
+Ensures all [YAML](https://yaml.org/) files use the recommended `yaml` file extension instead of the commonly used `yml` extension.
+
 Developed and maintained by Research Technology (RT), Tufts Technology Services (TTS), Tufts University.
 
 ## Installation
