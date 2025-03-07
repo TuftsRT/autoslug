@@ -19,10 +19,15 @@ def add_mime_types(exts: Set[str]) -> Set[str]:
 POSITIONAL = [
     {
         "path": {
-            "help": "path to the file or directory to process",
+            "default": ".",
+            "help": (
+                "path to the file or directory to process "
+                "(processes current directory if omitted)"
+            ),
             "metavar": "<path>",
-            "type": str,
+            "nargs": "?",
             "postprocess": [lambda x: Path(x).resolve()],
+            "type": str,
         }
     }
 ]

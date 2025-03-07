@@ -23,7 +23,7 @@ autoslug [options] <path>
 ### Positional Arguments
 
 - `<path>`
-  - path to the file or directory to process
+  - path to the file or directory to process (processes current directory if omitted)
 
 ### Options
 
