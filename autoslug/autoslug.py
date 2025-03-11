@@ -29,7 +29,7 @@ def _handle_affixes(
     return prefix, stem, suffix
 
 
-def _shorten_stem(stem: str, max_length: Optional[int], sep: str) -> str:
+def _shorten_stem(stem: str, max_length: int, sep: str) -> str:
     if len(stem) <= max_length:
         return stem
     parts = stem.split(sep)
@@ -122,12 +122,15 @@ def _process_change(
                 return False
     else:
         logger.debug(f"unchanged: {path}")
+    if warn_limit is not None:
+        if (new_path_len > warn_limit) and (
+            (error_limit is None) or (new_path_len <= error_limit)
+        ):
+            logger.warning(f"path exceeds {warn_limit} characters: {new_path}")
     if error_limit is not None:
         if new_path_len > error_limit:
-            logger.error(f"error (path exceeds {error_limit} characters): {new_path}")
+            logger.error(f"path exceeds {error_limit} characters: {new_path}")
         return False
-    if warn_limit is not None:
-        logger.warning(f"warning (path exceeds {warn_limit} characters): {new_path}")
     return not change
 
 
