@@ -70,6 +70,7 @@ autoslug [options] <path>
     - `R`
     - `Rmd`
     - `rst`
+    - `toml`
     - `yaml`
     - `yml`
 - `--prefixes <prefix>`

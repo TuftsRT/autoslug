@@ -21,6 +21,7 @@ OK_EXTS: Final[Set[str]] = {
     "R",
     "Rmd",
     "rst",
+    "toml",
     "yaml",
     "yml",
 }
