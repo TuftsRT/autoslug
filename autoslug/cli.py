@@ -22,7 +22,7 @@ def get_log_level(level: str, quiet: bool, verbose: bool) -> int:
         return getattr(logging, "INFO")
 
 
-def is_git_repository(path: Path) -> Tuple[bool, Optional[bool]]:
+def is_git_repository(path: Path) -> Optional[bool]:
     try:
         run(
             ["git", "-C", path.as_posix(), "rev-parse"],
@@ -30,25 +30,27 @@ def is_git_repository(path: Path) -> Tuple[bool, Optional[bool]]:
             stdout=DEVNULL,
             stderr=DEVNULL,
         )
-        return True, True
+        return True
     except CalledProcessError:
-        return True, False
+        return False
     except FileNotFoundError:
-        return False, None
+        return None
 
 
-def check_git_repository(path: Path, force: bool, logger: logging.Logger) -> None:
-    test_ok, is_git = is_git_repository(path=path)
-    if not test_ok:
-        msg = "unable to determine whether path is within git repository"
-    elif not is_git:
+def check_git_repository(path: Path, force: bool, logger: logging.Logger) -> bool:
+    git_status = is_git_repository(path=path)
+    if git_status:
+        return True
+    elif git_status is not None:
         msg = "specified path is not within a git repository"
-    if (not test_ok or not is_git) and not force:
+    else:
+        msg = "unable to determine whether path is within git repository"
+    if not force:
         logger.critical(f"{msg}: {path.as_posix()}")
         logger.warning("actions might be destructive and irreversible")
         logger.info("run again with --force to override and process anyway")
         exit(1)
-    return None
+    return False
 
 
 def assert_path(path: Path, logger: logging.Logger) -> None:
@@ -58,10 +60,9 @@ def assert_path(path: Path, logger: logging.Logger) -> None:
     return None
 
 
-def perform_checks(path: Path, force: bool, logger: logging.Logger) -> None:
+def perform_checks(path: Path, force: bool, logger: logging.Logger) -> bool:
     assert_path(path=path, logger=logger)
-    check_git_repository(path=path, force=force, logger=logger)
-    return None
+    return check_git_repository(path=path, force=force, logger=logger)
 
 
 def main() -> None:
@@ -77,7 +78,7 @@ def main() -> None:
         log_file=args["log_file"],
     )
 
-    perform_checks(path=args["path"], force=args["force"], logger=logger)
+    is_git_repo = perform_checks(path=args["path"], force=args["force"], logger=logger)
 
     if args["force"]:
         logger.warning("disabling protections and forcing processing")
