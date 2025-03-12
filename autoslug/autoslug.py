@@ -130,7 +130,7 @@ def _process_change(
     if error_limit is not None:
         if new_path_len > error_limit:
             logger.error(f"path exceeds {error_limit} characters: {new_path}")
-        return False
+            return False
     return not change
 
 
