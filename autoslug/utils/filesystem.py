@@ -1,6 +1,7 @@
 import os
 from logging import Logger
 from pathlib import Path
+from subprocess import CalledProcessError, run
 from typing import Tuple
 
 from fs.base import FS
@@ -32,7 +33,17 @@ def _fs_rename(fs: FS, old: str, new: str) -> bool:
     return True
 
 
-def rename(fs: FS, old: str, new: str) -> bool:
+def _git_rename(fs: FS, old: str, new: str) -> bool:
+    try:
+        run(["git", "mv", old, new], check=True, cwd=fs.getospath("/"))
+    except (CalledProcessError, PermissionError):
+        return _os_rename(fs, old, new)
+    return True
+
+
+def rename(fs: FS, old: str, new: str, is_git_repo: bool) -> bool:
+    if is_git_repo:
+        return _git_rename(fs=fs, old=old, new=new)
     try:
         if fs.getmeta()["supports_rename"]:
             return _os_rename(fs=fs, old=old, new=new)
