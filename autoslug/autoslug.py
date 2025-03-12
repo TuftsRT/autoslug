@@ -105,6 +105,7 @@ def _process_change(
     fs: FS,
     path: str,
     new_path: str,
+    is_git_repo: bool,
     logger: Logger,
     warn_limit: Optional[int],
     error_limit: Optional[int],
@@ -115,7 +116,7 @@ def _process_change(
         if _check_conflict(fs=fs, path=path, new_path=new_path):
             logger.error(f"conflict preventing renaming: {path} -> {new_path}")
         else:
-            if rename(fs=fs, old=path, new=new_path):
+            if rename(fs=fs, old=path, new=new_path, is_git_repo=is_git_repo):
                 logger.info(f"renamed: {path} -> {new_path}")
             else:
                 log_access_denied(path=path, logger=logger)
@@ -137,6 +138,7 @@ def _process_change(
 def _process_file(
     fs: FS,
     path: str,
+    is_git_repo: bool,
     ok_exts: Set[str],
     no_dash_exts: Set[str],
     ext_map: Dict[str, str],
@@ -171,6 +173,7 @@ def _process_file(
         fs=fs,
         path=path,
         new_path=new_path,
+        is_git_repo=is_git_repo,
         logger=logger,
         warn_limit=warn_limit,
         error_limit=error_limit,
@@ -180,6 +183,7 @@ def _process_file(
 def _process_dir(
     fs: FS,
     path: str,
+    is_git_repo: bool,
     ignore_globs: Set[str],
     ok_exts: Set[str],
     no_dash_exts: Set[str],
@@ -212,6 +216,7 @@ def _process_dir(
                 fs=fs,
                 path=path,
                 new_path=new_path,
+                is_git_repo=is_git_repo,
                 logger=logger,
                 warn_limit=warn_limit,
                 error_limit=error_limit,
@@ -226,6 +231,7 @@ def _process_dir(
                     process_path(
                         fs=fs,
                         path=join(path, subpath.name),
+                        is_git_repo=is_git_repo,
                         ignore_globs=ignore_globs,
                         ok_exts=ok_exts,
                         no_dash_exts=no_dash_exts,
@@ -253,6 +259,7 @@ def _process_dir(
 def process_path(
     fs: FS,
     path: str,
+    is_git_repo: bool,
     ignore_globs: Set[str],
     ok_exts: Set[str],
     no_dash_exts: Set[str],
@@ -274,6 +281,7 @@ def process_path(
         return _process_dir(
             fs=fs,
             path=path,
+            is_git_repo=is_git_repo,
             ignore_globs=ignore_globs,
             ok_exts=ok_exts,
             no_dash_exts=no_dash_exts,
@@ -292,6 +300,7 @@ def process_path(
         return _process_file(
             fs=fs,
             path=path,
+            is_git_repo=is_git_repo,
             ok_exts=ok_exts,
             no_dash_exts=no_dash_exts,
             ext_map=ext_map,

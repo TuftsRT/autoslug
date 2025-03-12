@@ -99,6 +99,7 @@ def main() -> None:
             fs=fs,
             ignore_globs=args["ignore_globs"],
             ignore_root=ignore_root,
+            is_git_repo=is_git_repo,
             logger=logger,
             max_length=args["max_length"],
             n_digits=args["num_digits"],
