@@ -7,6 +7,7 @@ IGNORE_GLOBS: Final[Set[str]] = {
     "**/__pycache__",
     "**/.DS_Store",
     "**/.git",
+    "**/.ipynb_checkpoints",
     "**/LICENSE*",
     "**/README*",
 }
