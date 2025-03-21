@@ -15,6 +15,7 @@ NO_DASH_EXTS: Final[Set[str]] = {
     "py",
 }
 OK_EXTS: Final[Set[str]] = {
+    "bat",
     "cmd",
     "ipynb",
     "md",
