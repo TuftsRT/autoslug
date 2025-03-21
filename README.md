@@ -44,6 +44,7 @@ autoslug [options] <path>
     - `**/__pycache__`
     - `**/.DS_Store`
     - `**/.git`
+    - `**/.ipynb_checkpoints`
     - `**/LICENSE*`
     - `**/README*`
 - `--ignore-root`
@@ -63,6 +64,7 @@ autoslug [options] <path>
   - attempt to pad or round any existing numerical prefixes to consist of this many digits
 - `--ok-exts <ext>`
   - file extensions (without periods) to recognize in addition to common MIME types and
+    - `bat`
     - `cmd`
     - `ipynb`
     - `md`
