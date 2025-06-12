@@ -50,10 +50,10 @@ def _git_rename(fs: FS, old: str, new: str) -> bool:
 
 
 def rename(fs: FS, old: str, new: str, is_git_repo: bool) -> bool:
-    if is_git_repo:
-        return _git_rename(fs=fs, old=old, new=new)
     try:
         if fs.getmeta()["supports_rename"]:
+            if is_git_repo:
+                return _git_rename(fs=fs, old=old, new=new)
             return _os_rename(fs=fs, old=old, new=new)
     except KeyError:
         pass
