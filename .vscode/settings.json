@@ -11,6 +11,7 @@
     "osfs",
     "pipx",
     "pycache",
+    "setuptools",
     "urlify"
   ]
 }
