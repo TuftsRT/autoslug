@@ -3,6 +3,7 @@
     "autoslug",
     "getmeta",
     "getospath",
+    "getsyspath",
     "ipynb",
     "levelname",
     "memoryfs",
